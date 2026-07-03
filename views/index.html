@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recovery Dashboard</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="header">
+      <div class="header-top">
+        <div class="brand">
+          <span class="brand-mark">WHP</span>
+          <span class="brand-name" id="user-name">Recovery Dashboard</span>
+        </div>
+        <div class="header-meta">
+          <span class="dot off" id="conn-dot"></span>
+          <span id="last-sync">loading…</span>
+        </div>
+      </div>
+      <svg class="pulse-trace" viewBox="0 0 700 34" preserveAspectRatio="none">
+        <path d="M0 17 L60 17 L75 4 L90 30 L105 17 L160 17 L175 10 L190 24 L205 17 L700 17" />
+      </svg>
+      <div class="subtitle">Your WHOOP recovery, strain, and sleep — synced automatically.</div>
+    </header>
+
+    <div id="not-connected" class="section" style="display:none">
+      <div class="empty-state">
+        <div class="icon">⏻</div>
+        <div class="title">Connect your WHOOP account</div>
+        <div class="desc">Authorize this app to read your recovery, sleep, cycle, and workout data. You can disconnect at any time.</div>
+        <br />
+        <a href="/auth/whoop" class="btn primary">Connect WHOOP</a>
+      </div>
+    </div>
+
+    <div id="dashboard-content" style="display:none">
+      <div class="toolbar">
+        <select id="range-select" class="select">
+          <option value="14">Last 14 days</option>
+          <option value="30" selected>Last 30 days</option>
+          <option value="90">Last 90 days</option>
+        </select>
+        <button id="sync-btn" class="btn">Sync now</button>
+        <span class="spacer"></span>
+        <button id="disconnect-btn" class="btn danger">Disconnect WHOOP</button>
+      </div>
+
+      <div class="section" style="margin-bottom:24px;">
+        <div class="section-head">
+          <div class="section-title">Share with your trainer</div>
+        </div>
+        <div class="share-box">
+          <span>Read-only link:</span>
+          <code id="share-url">—</code>
+          <span class="spacer"></span>
+          <button id="copy-share-btn" class="btn">Copy link</button>
+          <button id="regen-share-btn" class="btn">Regenerate</button>
+        </div>
+      </div>
+
+      <div class="gauges" id="gauges"></div>
+
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">Recovery %</div>
+          <div class="section-note">green ≥67 · amber ≥34 · red &lt;34</div>
+        </div>
+        <div class="chart-wrap" id="chart-recovery"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">Day Strain</div>
+          <div class="section-note">0–21 scale</div>
+        </div>
+        <div class="chart-wrap" id="chart-strain"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">Sleep Performance %</div>
+          <div class="section-note">vs. sleep need</div>
+        </div>
+        <div class="chart-wrap" id="chart-sleep"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">Heart Rate Variability</div>
+          <div class="section-note">ms, RMSSD</div>
+        </div>
+        <div class="chart-wrap" id="chart-hrv"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">Recent workouts</div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Date</th><th>Activity</th><th>Strain</th><th>Avg HR</th><th>Duration</th></tr>
+          </thead>
+          <tbody id="workout-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="workout-empty" style="display:none">
+          <div class="desc">No workouts logged in this range yet.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="skeleton" id="loading-msg">loading your data…</div>
+
+    <form method="POST" action="/logout" style="margin-top:20px;">
+      <button type="submit" class="btn">Log out</button>
+    </form>
+
+    <div class="footer-note">Self-hosted · data stays on your server</div>
+  </div>
+
+  <script src="/js/charts.js"></script>
+  <script src="/js/render.js"></script>
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>

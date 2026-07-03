@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign in — Recovery Dashboard</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="login-shell">
+    <div class="login-card">
+      <div class="brand">
+        <span class="brand-mark">WHP</span>
+        <span class="brand-name">Recovery Dashboard</span>
+      </div>
+      <div id="error-slot"></div>
+      <form method="POST" action="/login">
+        <input type="password" name="password" placeholder="Admin password" autofocus required />
+        <button type="submit" class="btn primary">Sign in</button>
+      </form>
+    </div>
+  </div>
+  <script>
+    if (new URLSearchParams(window.location.search).get('error')) {
+      document.getElementById('error-slot').innerHTML = '<div class="login-error">Wrong password. Try again.</div>';
+    }
+  </script>
+</body>
+</html>

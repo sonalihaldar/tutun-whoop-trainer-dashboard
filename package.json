@@ -1,0 +1,19 @@
+{
+  "name": "whoop-trainer-dashboard",
+  "version": "1.0.0",
+  "description": "Self-hosted dashboard that pulls WHOOP recovery, sleep, and workout data and shares it with your trainer via a read-only link.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "express-session": "^1.18.1"
+  },
+  "license": "MIT"
+}
