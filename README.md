@@ -99,3 +99,4 @@ public/js/               Chart rendering + page controllers
 # tutun-whoop-trainer-dashboard
 # tutun-whoop-trainer-dashboard
 # tutun-whoop-trainer-dashboard
+# tutun-whoop-trainer-dashboard
