@@ -28,9 +28,6 @@
     }
 
     document.getElementById('share-url').textContent = window.location.origin + status.share_url_path;
-    if (status.whoop_user?.first_name) {
-      document.getElementById('user-name').textContent = `${status.whoop_user.first_name}'s Recovery Dashboard`;
-    }
 
     const days = rangeSelect.value;
     const data = await loadData(days);

@@ -23,10 +23,6 @@
       return;
     }
 
-    if (data.whoop_user?.first_name) {
-      document.getElementById('user-name').textContent = `${data.whoop_user.first_name}'s Recovery Dashboard`;
-    }
-
     notConnected.style.display = 'none';
     dashboardContent.style.display = 'block';
     renderAll(data);

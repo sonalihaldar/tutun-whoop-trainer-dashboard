@@ -28,10 +28,10 @@ cp .env.example .env
 ```
 
 Edit `.env`:
-- `ffa5fe6f-37b0-4f52-9c5f-4af154afff2e` / `39116eeafb899b2ff0c39aabc301473d22a158e2ef6966c67f666fc12aa73efc` — from step 1 **Client ID** and **Client Secret**
+- `WHOOP_CLIENT_ID` / `WHOOP_CLIENT_SECRET` — from step 1
 - `WHOOP_REDIRECT_URI=http://localhost:3000/auth/whoop/callback`
-- `Iamawesome28@` — a password only you will use to log into your dashboard
-- `b8c87e4e70bd08f066d87e5cf8c5bceaebd757e13aacddc1c11ec5ffaddbdb63` — SESSION_SECRET - generate one with:
+- `ADMIN_PASSWORD` — a password only you will use to log into your dashboard
+- `SESSION_SECRET` — generate one with:
   ```bash
   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
   ```
@@ -96,7 +96,3 @@ public/js/               Chart rendering + page controllers
 
 - **Webhooks instead of polling**: WHOOP supports webhooks for near-real-time updates. The current polling approach is simpler and sufficient for coaching check-ins, but see [WHOOP's webhook docs](https://developer.whoop.com/docs/developing/webhooks/) if you want instant updates.
 - **Multiple athletes**: this is built for one WHOOP account. Supporting several people would mean per-user token storage and per-user share tokens — a bigger change, happy to help if you want to go there.
-# tutun-whoop-trainer-dashboard
-# tutun-whoop-trainer-dashboard
-# tutun-whoop-trainer-dashboard
-# tutun-whoop-trainer-dashboard
