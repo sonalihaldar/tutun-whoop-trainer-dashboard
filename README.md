@@ -97,3 +97,4 @@ public/js/               Chart rendering + page controllers
 - **Webhooks instead of polling**: WHOOP supports webhooks for near-real-time updates. The current polling approach is simpler and sufficient for coaching check-ins, but see [WHOOP's webhook docs](https://developer.whoop.com/docs/developing/webhooks/) if you want instant updates.
 - **Multiple athletes**: this is built for one WHOOP account. Supporting several people would mean per-user token storage and per-user share tokens — a bigger change, happy to help if you want to go there.
 # tutun-whoop-trainer-dashboard
+# tutun-whoop-trainer-dashboard
