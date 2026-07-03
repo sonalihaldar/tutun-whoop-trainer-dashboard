@@ -98,3 +98,4 @@ public/js/               Chart rendering + page controllers
 - **Multiple athletes**: this is built for one WHOOP account. Supporting several people would mean per-user token storage and per-user share tokens — a bigger change, happy to help if you want to go there.
 # tutun-whoop-trainer-dashboard
 # tutun-whoop-trainer-dashboard
+# tutun-whoop-trainer-dashboard
