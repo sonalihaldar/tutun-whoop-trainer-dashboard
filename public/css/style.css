@@ -13,6 +13,12 @@
   --zone-good: #4ade80;
   --zone-mid: #fbbf24;
   --zone-low: #f2545b;
+  --hrz0: #4b5a5f;
+  --hrz1: #5fa8d3;
+  --hrz2: #4ade80;
+  --hrz3: #fbbf24;
+  --hrz4: #fb923c;
+  --hrz5: #f2545b;
   --radius: 10px;
   --mono: 'IBM Plex Mono', ui-monospace, monospace;
   --sans: 'IBM Plex Sans', system-ui, sans-serif;
@@ -306,6 +312,63 @@ tbody tr:hover { background: rgba(95, 227, 192, 0.04); }
   border-radius: 10px;
   font-size: 11px;
   font-weight: 600;
+}
+
+/* ---------- Zone breakdown ---------- */
+
+.zone-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 18px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+.zone-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.zone-legend-item i {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.zone-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.zone-row-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+  gap: 10px;
+}
+.zone-row-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+.zone-row-meta {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+.zone-bar-track {
+  height: 18px;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  background: var(--surface-raised);
+  min-width: 6%;
+}
+.zone-seg {
+  height: 100%;
 }
 
 /* ---------- Empty / loading states ---------- */

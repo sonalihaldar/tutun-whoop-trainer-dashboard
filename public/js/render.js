@@ -118,10 +118,63 @@ function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+const ZONE_LABELS = ['Zone 0', 'Zone 1', 'Zone 2', 'Zone 3', 'Zone 4', 'Zone 5'];
+const ZONE_COLORS = ['var(--hrz0)', 'var(--hrz1)', 'var(--hrz2)', 'var(--hrz3)', 'var(--hrz4)', 'var(--hrz5)'];
+
+function formatMinutes(min) {
+  const h = Math.floor(min / 60);
+  const m = Math.round(min % 60);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+function titleCaseSport(s) {
+  return String(s || 'activity').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function renderZoneBreakdown(data) {
+  const container = document.getElementById('zone-breakdown');
+  if (!container) return;
+
+  const breakdown = data.zoneBreakdown || [];
+  if (!breakdown.length) {
+    container.innerHTML = '<div class="empty-state"><div class="desc">No workouts with heart rate zone data in this range yet.</div></div>';
+    return;
+  }
+
+  const maxMinutes = Math.max(...breakdown.map((a) => a.totalMinutes), 1);
+
+  const legend = `<div class="zone-legend">${ZONE_LABELS.map((label, i) =>
+    `<span class="zone-legend-item"><i style="background:${ZONE_COLORS[i]}"></i>${label}</span>`
+  ).join('')}</div>`;
+
+  const rows = breakdown.map((activity) => {
+    const barWidthPct = Math.max(6, (activity.totalMinutes / maxMinutes) * 100);
+    const segments = activity.zonesMinutes.map((min, i) => {
+      if (min <= 0) return '';
+      const pct = (min / activity.totalMinutes) * 100;
+      const title = `${ZONE_LABELS[i]}: ${formatMinutes(min)}`;
+      return `<div class="zone-seg" style="width:${pct}%;background:${ZONE_COLORS[i]}" title="${title}"></div>`;
+    }).join('');
+
+    return `
+      <div class="zone-row">
+        <div class="zone-row-label">
+          <span class="zone-row-name">${escapeHtml(titleCaseSport(activity.sport_name))}</span>
+          <span class="zone-row-meta">${activity.workoutCount} ${activity.workoutCount === 1 ? 'workout' : 'workouts'} · ${formatMinutes(activity.totalMinutes)}</span>
+        </div>
+        <div class="zone-bar-track" style="width:${barWidthPct}%">${segments}</div>
+      </div>
+    `;
+  }).join('');
+
+  container.innerHTML = legend + `<div class="zone-rows">${rows}</div>`;
+}
+
 function renderAll(data) {
   renderConnectionDot(data.connected);
   renderLastSync(data);
   renderGauges(data);
   renderCharts(data);
+  renderZoneBreakdown(data);
   renderWorkoutTable(data);
 }

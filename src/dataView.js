@@ -81,8 +81,49 @@ function buildDashboardPayload({ days = 30 } = {}) {
     recovery,
     cycles,
     sleep,
-    workouts
+    workouts,
+    zoneBreakdown: buildZoneBreakdown(workouts)
   };
+}
+
+// Aggregates time-in-heart-rate-zone across all workouts, grouped by sport,
+// so the dashboard can show "how much of this person's running is Zone 2
+// vs. how much of their lifting is Zone 4/5", etc.
+function buildZoneBreakdown(workouts) {
+  const bySport = {};
+
+  for (const w of workouts) {
+    if (!w.zone_durations) continue;
+    const key = w.sport_name || 'other';
+    if (!bySport[key]) {
+      bySport[key] = { sport_name: key, workoutCount: 0, zonesMilli: [0, 0, 0, 0, 0, 0] };
+    }
+    const zd = w.zone_durations;
+    const vals = [
+      zd.zone_zero_milli || 0,
+      zd.zone_one_milli || 0,
+      zd.zone_two_milli || 0,
+      zd.zone_three_milli || 0,
+      zd.zone_four_milli || 0,
+      zd.zone_five_milli || 0
+    ];
+    bySport[key].workoutCount += 1;
+    vals.forEach((v, i) => { bySport[key].zonesMilli[i] += v; });
+  }
+
+  return Object.values(bySport)
+    .map((entry) => {
+      const zonesMinutes = entry.zonesMilli.map((ms) => ms / 60000);
+      const totalMinutes = zonesMinutes.reduce((sum, v) => sum + v, 0);
+      return {
+        sport_name: entry.sport_name,
+        workoutCount: entry.workoutCount,
+        zonesMinutes,
+        totalMinutes
+      };
+    })
+    .filter((entry) => entry.totalMinutes > 0)
+    .sort((a, b) => b.totalMinutes - a.totalMinutes);
 }
 
 function sumSleepStagesMillis(stageSummary) {
