@@ -63,8 +63,8 @@
 
       <div class="tabs">
         <button class="tab-btn active" data-tab="overview">Overview</button>
-        <button class="tab-btn" data-tab="workouts">Workouts</button>
         <button class="tab-btn" data-tab="weeklytrends">Weekly Trends</button>
+        <button class="tab-btn" data-tab="workouts">Workouts</button>
       </div>
 
       <div class="tab-panel" id="tab-overview">
@@ -103,6 +103,10 @@
         </div>
       </div>
 
+      <div class="tab-panel" id="tab-weeklytrends" style="display:none">
+        <div id="weekly-trends"></div>
+      </div>
+
       <div class="tab-panel" id="tab-workouts" style="display:none">
         <div class="section">
           <div class="section-head">
@@ -126,10 +130,6 @@
             <div class="desc">No workouts logged in this range yet.</div>
           </div>
         </div>
-      </div>
-
-      <div class="tab-panel" id="tab-weeklytrends" style="display:none">
-        <div id="weekly-trends"></div>
       </div>
     </div>
 

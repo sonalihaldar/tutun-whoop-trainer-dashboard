@@ -230,14 +230,13 @@ function renderWeeklyTrends(data) {
       `;
     }
 
-    const strainSvg = lineChartSVG(
+    const strainSvg = barChartSVG(
       activity.weeks.map((w) => ({ date: w.weekStart, value: w.strain })),
       { min: 0, max: 21, colorFn: zoneColorForStrain }
     );
 
-    const zoneMax = Math.max(1, ...activity.weeks.flatMap((w) => w.zonesMinutes)) * 1.1;
     const zoneSeries = [0, 1, 2, 3, 4, 5].map((zi) => activity.weeks.map((w) => w.zonesMinutes[zi]));
-    const zonesSvg = multiLineChartSVG(zoneSeries, { min: 0, max: zoneMax, colors: ZONE_COLORS, dates });
+    const zonesSvg = stackedBarChartSVG(zoneSeries, { colors: ZONE_COLORS, dates, labels: ZONE_LABELS });
 
     return `
       <div class="section">
