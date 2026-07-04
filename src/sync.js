@@ -18,20 +18,20 @@ async function runSync({ daysBack = 90 } = {}) {
       whoop.getWorkoutCollection({ start })
     ]);
 
-    store.upsertMany('recovery', recoveries, 'cycle_id');
-    store.upsertMany('cycle', cycles, 'id');
-    store.upsertMany('sleep', sleeps, 'id');
-    store.upsertMany('workout', workouts, 'id');
+    await store.upsertMany('recovery', recoveries, 'cycle_id');
+    await store.upsertMany('cycle', cycles, 'id');
+    await store.upsertMany('sleep', sleeps, 'id');
+    await store.upsertMany('workout', workouts, 'id');
 
     // Best-effort profile refresh; don't fail the whole sync if this errors.
     try {
       const profile = await whoop.getBasicProfile();
-      store.updateSettings({ whoop_user: profile });
+      await store.updateSettings({ whoop_user: profile });
     } catch (err) {
       console.warn('Could not refresh profile:', err.message);
     }
 
-    store.updateSettings({
+    await store.updateSettings({
       last_sync_at: new Date().toISOString(),
       last_sync_status: 'success',
       last_sync_error: null
@@ -50,7 +50,7 @@ async function runSync({ daysBack = 90 } = {}) {
     const message = err.response
       ? `${err.response.status} ${JSON.stringify(err.response.data)}`
       : err.message;
-    store.updateSettings({
+    await store.updateSettings({
       last_sync_at: new Date().toISOString(),
       last_sync_status: 'error',
       last_sync_error: message
@@ -63,10 +63,14 @@ async function runSync({ daysBack = 90 } = {}) {
 
 function startScheduledSync(intervalMinutes) {
   const intervalMs = Math.max(5, intervalMinutes) * 60 * 1000;
-  setInterval(() => {
-    const tokens = store.getTokens();
-    if (!tokens) return; // nothing to sync until WHOOP is connected
-    runSync().catch((err) => console.error('Scheduled sync failed:', err.message));
+  setInterval(async () => {
+    try {
+      const tokens = await store.getTokens();
+      if (!tokens) return; // nothing to sync until WHOOP is connected
+      await runSync();
+    } catch (err) {
+      console.error('Scheduled sync failed:', err.message);
+    }
   }, intervalMs);
 }
 

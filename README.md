@@ -65,7 +65,22 @@ Visit `http://localhost:3000`, log in with your `ADMIN_PASSWORD`, click **Connec
 - The app sleeps after 15 minutes of no traffic and takes ~20–30s to wake on the next request — totally fine for a personal dashboard.
 - The filesystem resets on redeploy (not on sleep/wake — only on a new deploy). If that happens, just click **Sync now** once you reconnect WHOOP to pull your history back in; nothing is lost from WHOOP's side.
 
-## 4. Share it with your trainer
+## 4. Make your data survive redeploys (fixes "why do I have to reconnect WHOOP every time?")
+
+By default, your WHOOP tokens and synced history live in a local JSON file. On Render's free tier, that file is **wiped on every redeploy** — meaning every `git push` forces you to redo the WHOOP OAuth screen. Fix this once with a free Upstash Redis database (a separate service from Render, so it isn't affected by Render's redeploys):
+
+1. Go to [upstash.com](https://upstash.com), sign up free, and create a Redis database (any region — pick one close to your Render region if given a choice).
+2. On that database's page, copy the **REST URL** and **REST TOKEN**.
+3. In Render → your service → **Environment**, add:
+   ```
+   UPSTASH_REDIS_REST_URL=<paste REST URL>
+   UPSTASH_REDIS_REST_TOKEN=<paste REST TOKEN>
+   ```
+4. Redeploy once. From then on, your WHOOP connection, synced history, and trainer share link (unless already fixed via `SHARE_TOKEN`) all persist across every future deploy — no more re-authorizing WHOOP after a code update.
+
+If you skip this, the app still works fine — it just falls back to the local file, which is perfectly adequate for running locally on your own machine, but will keep resetting on Render every time you push new code.
+
+## 5. Share it with your trainer
 
 On your dashboard, copy the **read-only link** shown at the top and send it to your trainer directly (text, email, whatever). They don't need an account.
 

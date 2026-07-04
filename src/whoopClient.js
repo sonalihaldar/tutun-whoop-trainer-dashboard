@@ -36,12 +36,12 @@ async function exchangeCodeForToken(code) {
   const res = await axios.post(`${AUTH_BASE}/token`, body.toString(), {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
   });
-  persistTokenResponse(res.data);
+  await persistTokenResponse(res.data);
   return res.data;
 }
 
 async function refreshAccessToken() {
-  const tokens = store.getTokens();
+  const tokens = await store.getTokens();
   if (!tokens || !tokens.refresh_token) {
     throw new Error('No refresh token available. Please reconnect WHOOP.');
   }
@@ -57,13 +57,13 @@ async function refreshAccessToken() {
   });
   // WHOOP rotates refresh tokens: every refresh response includes a NEW
   // refresh_token that must replace the old one.
-  persistTokenResponse(res.data);
+  await persistTokenResponse(res.data);
   return res.data;
 }
 
-function persistTokenResponse(data) {
+async function persistTokenResponse(data) {
   const expiresAt = Date.now() + (data.expires_in - 60) * 1000; // 60s safety margin
-  store.setTokens({
+  await store.setTokens({
     access_token: data.access_token,
     refresh_token: data.refresh_token,
     expires_at: expiresAt,
@@ -72,7 +72,7 @@ function persistTokenResponse(data) {
 }
 
 async function getValidAccessToken() {
-  const tokens = store.getTokens();
+  const tokens = await store.getTokens();
   if (!tokens) {
     throw new Error('WHOOP is not connected yet.');
   }
@@ -134,7 +134,7 @@ async function revokeAccess() {
   await axios.delete(`${API_BASE}/v2/user/access`, {
     headers: { Authorization: `Bearer ${accessToken}` }
   });
-  store.setTokens(null);
+  await store.setTokens(null);
 }
 
 module.exports = {

@@ -43,23 +43,23 @@ function isShareTokenFixed() {
   return !!process.env.SHARE_TOKEN;
 }
 
-function getOrCreateShareToken() {
+async function getOrCreateShareToken() {
   if (process.env.SHARE_TOKEN) return process.env.SHARE_TOKEN;
-  const settings = store.getSettings();
+  const settings = await store.getSettings();
   if (settings.share_token) return settings.share_token;
   const token = crypto.randomBytes(24).toString('base64url');
-  store.updateSettings({ share_token: token });
+  await store.updateSettings({ share_token: token });
   return token;
 }
 
-function regenerateShareToken() {
+async function regenerateShareToken() {
   if (process.env.SHARE_TOKEN) {
     // Fixed via environment variable — regenerating here would have no
     // effect since getOrCreateShareToken always prefers the env value.
     return process.env.SHARE_TOKEN;
   }
   const token = crypto.randomBytes(24).toString('base64url');
-  store.updateSettings({ share_token: token });
+  await store.updateSettings({ share_token: token });
   return token;
 }
 

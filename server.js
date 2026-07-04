@@ -77,23 +77,33 @@ app.get('/', requireAdmin, (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'index.html'));
 });
 
-app.get('/api/status', requireAdmin, (req, res) => {
-  const settings = store.getSettings();
-  res.json({
-    connected: !!store.getTokens(),
-    whoop_user: settings.whoop_user,
-    last_sync_at: settings.last_sync_at,
-    last_sync_status: settings.last_sync_status,
-    last_sync_error: settings.last_sync_error,
-    share_url_path: `/share/${getOrCreateShareToken()}`,
-    share_token_fixed: isShareTokenFixed(),
-    login_required: isLoginRequired()
-  });
+app.get('/api/status', requireAdmin, async (req, res) => {
+  try {
+    const settings = await store.getSettings();
+    const tokens = await store.getTokens();
+    const shareToken = await getOrCreateShareToken();
+    res.json({
+      connected: !!tokens,
+      whoop_user: settings.whoop_user,
+      last_sync_at: settings.last_sync_at,
+      last_sync_status: settings.last_sync_status,
+      last_sync_error: settings.last_sync_error,
+      share_url_path: `/share/${shareToken}`,
+      share_token_fixed: isShareTokenFixed(),
+      login_required: isLoginRequired()
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-app.get('/api/data', requireAdmin, (req, res) => {
-  const days = Math.min(365, Math.max(1, parseInt(req.query.days, 10) || 30));
-  res.json(buildDashboardPayload({ days }));
+app.get('/api/data', requireAdmin, async (req, res) => {
+  try {
+    const days = Math.min(365, Math.max(1, parseInt(req.query.days, 10) || 30));
+    res.json(await buildDashboardPayload({ days }));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post('/api/sync', requireAdmin, async (req, res) => {
@@ -105,8 +115,8 @@ app.post('/api/sync', requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/api/share/regenerate', requireAdmin, (req, res) => {
-  const token = regenerateShareToken();
+app.post('/api/share/regenerate', requireAdmin, async (req, res) => {
+  const token = await regenerateShareToken();
   res.json({ ok: true, share_url_path: `/share/${token}` });
 });
 
@@ -117,7 +127,7 @@ app.post('/api/whoop/disconnect', requireAdmin, async (req, res) => {
   } catch (err) {
     // Even if the remote revoke call fails, drop local tokens so the app
     // stops trying to use them.
-    store.setTokens(null);
+    await store.setTokens(null);
     res.json({ ok: true, warning: err.message });
   }
 });
@@ -151,21 +161,29 @@ app.get('/auth/whoop/callback', requireAdmin, async (req, res) => {
 
 // ---------- Trainer share view (public, token-gated) ----------
 
-app.get('/share/:token', (req, res) => {
-  const validToken = getOrCreateShareToken();
-  if (!validToken || req.params.token !== validToken) {
-    return res.status(404).send('Not found');
+app.get('/share/:token', async (req, res) => {
+  try {
+    const validToken = await getOrCreateShareToken();
+    if (!validToken || req.params.token !== validToken) {
+      return res.status(404).send('Not found');
+    }
+    res.sendFile(path.join(__dirname, 'views', 'share.html'));
+  } catch (err) {
+    res.status(500).send('Something went wrong loading this page.');
   }
-  res.sendFile(path.join(__dirname, 'views', 'share.html'));
 });
 
-app.get('/api/share/:token/data', (req, res) => {
-  const validToken = getOrCreateShareToken();
-  if (!validToken || req.params.token !== validToken) {
-    return res.status(404).json({ error: 'Not found' });
+app.get('/api/share/:token/data', async (req, res) => {
+  try {
+    const validToken = await getOrCreateShareToken();
+    if (!validToken || req.params.token !== validToken) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+    const days = Math.min(365, Math.max(1, parseInt(req.query.days, 10) || 30));
+    res.json(await buildDashboardPayload({ days }));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-  const days = Math.min(365, Math.max(1, parseInt(req.query.days, 10) || 30));
-  res.json(buildDashboardPayload({ days }));
 });
 
 app.listen(PORT, () => {

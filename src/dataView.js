@@ -1,10 +1,10 @@
 const store = require('./store');
 
-function buildDashboardPayload({ days = 30 } = {}) {
+async function buildDashboardPayload({ days = 30 } = {}) {
   const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
 
-  const recovery = store
-    .getAll('recovery')
+  const recoveryRaw = await store.getAll('recovery');
+  const recovery = recoveryRaw
     .filter((r) => r.score_state === 'SCORED')
     .map((r) => ({
       cycle_id: r.cycle_id,
@@ -18,8 +18,8 @@ function buildDashboardPayload({ days = 30 } = {}) {
     .filter((r) => new Date(r.date).getTime() >= cutoff)
     .sort((a, b) => new Date(a.date) - new Date(b.date));
 
-  const cycles = store
-    .getAll('cycle')
+  const cycleRaw = await store.getAll('cycle');
+  const cycles = cycleRaw
     .filter((c) => c.score_state === 'SCORED')
     .map((c) => ({
       id: c.id,
@@ -33,8 +33,8 @@ function buildDashboardPayload({ days = 30 } = {}) {
     .filter((c) => new Date(c.start).getTime() >= cutoff)
     .sort((a, b) => new Date(a.start) - new Date(b.start));
 
-  const sleep = store
-    .getAll('sleep')
+  const sleepRaw = await store.getAll('sleep');
+  const sleep = sleepRaw
     .filter((s) => s.score_state === 'SCORED')
     .map((s) => ({
       id: s.id,
@@ -52,19 +52,20 @@ function buildDashboardPayload({ days = 30 } = {}) {
     .filter((s) => new Date(s.start).getTime() >= cutoff)
     .sort((a, b) => new Date(a.start) - new Date(b.start));
 
-  const workouts = getScoredWorkouts(cutoff);
+  const workouts = await getScoredWorkouts(cutoff);
 
   // Weekly Trends has its own week picker, independent of the date-range
   // filter above, so it always draws from a fixed 90-day window — enough
   // to populate a reasonable list of selectable weeks regardless of what
   // range the rest of the dashboard is showing.
   const weeklyTrendsCutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
-  const weeklyTrendWorkouts = getScoredWorkouts(weeklyTrendsCutoff);
+  const weeklyTrendWorkouts = await getScoredWorkouts(weeklyTrendsCutoff);
 
-  const settings = store.getSettings();
+  const settings = await store.getSettings();
+  const tokens = await store.getTokens();
 
   return {
-    connected: !!store.getTokens(),
+    connected: !!tokens,
     whoop_user: settings.whoop_user,
     last_sync_at: settings.last_sync_at,
     last_sync_status: settings.last_sync_status,
@@ -80,9 +81,9 @@ function buildDashboardPayload({ days = 30 } = {}) {
   };
 }
 
-function getScoredWorkouts(cutoffMs) {
-  return store
-    .getAll('workout')
+async function getScoredWorkouts(cutoffMs) {
+  const all = await store.getAll('workout');
+  return all
     .filter((w) => w.score_state === 'SCORED')
     .map((w) => ({
       id: w.id,
