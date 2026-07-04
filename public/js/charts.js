@@ -31,6 +31,13 @@ function fmtDateTime(iso) {
   return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
+function fmtDayLabel(iso) {
+  const d = new Date(iso);
+  const weekday = d.toLocaleDateString(undefined, { weekday: 'short' });
+  const date = d.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' });
+  return `${weekday} ${date}`;
+}
+
 // Renders a line chart with an optional colored dot per point (by zone).
 function lineChartSVG(points, { width = 900, height = 180, min = 0, max = 100, colorFn = null, unit = '' } = {}) {
   if (!points.length) return emptyChartSVG(width, height);
@@ -82,12 +89,13 @@ function lineChartSVG(points, { width = 900, height = 180, min = 0, max = 100, c
   </svg>`;
 }
 
-function barChartSVG(points, { width = 900, height = 180, min = 0, max = 21, colorFn = null, unit = '' } = {}) {
+function barChartSVG(points, { width = 900, height = 180, min = 0, max = 21, colorFn = null, unit = '', labelFormatter = null } = {}) {
   if (!points.length) return emptyChartSVG(width, height);
   const padL = 34, padR = 14, padT = 14, padB = 24;
   const innerW = width - padL - padR;
   const innerH = height - padT - padB;
   const barW = Math.max(2, (innerW / points.length) * 0.55);
+  const fmt = labelFormatter || fmtDate;
 
   const gridLines = [0.25, 0.5, 0.75].map((f) => {
     const y = padT + innerH * f;
@@ -101,13 +109,16 @@ function barChartSVG(points, { width = 900, height = 180, min = 0, max = 21, col
     const y = padT + innerH - barH;
     const color = colorFn ? colorFn(p.value) : 'var(--accent)';
     if (p.value === null || p.value === undefined) return '';
-    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${barH.toFixed(1)}" rx="2" fill="${color}"><title>${fmtDate(p.date)}: ${p.value ?? '—'}${unit}</title></rect>`;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${barH.toFixed(1)}" rx="2" fill="${color}"><title>${fmt(p.date)}: ${p.value ?? '—'}${unit}</title></rect>`;
   }).join('');
 
-  const labelIdxs = points.length > 1 ? [0, Math.floor((points.length - 1) / 2), points.length - 1] : [0];
+  const showAll = points.length <= 10;
+  const labelIdxs = showAll
+    ? points.map((_, i) => i)
+    : (points.length > 1 ? [0, Math.floor((points.length - 1) / 2), points.length - 1] : [0]);
   const labels = [...new Set(labelIdxs)].map((i) => {
     const x = padL + (i / Math.max(1, points.length - 1)) * innerW;
-    return `<text x="${x.toFixed(1)}" y="${height - 6}" font-family="var(--mono)" font-size="10" fill="var(--ink-dim)" text-anchor="middle">${fmtDate(points[i].date)}</text>`;
+    return `<text x="${x.toFixed(1)}" y="${height - 6}" font-family="var(--mono)" font-size="10" fill="var(--ink-dim)" text-anchor="middle">${fmt(points[i].date)}</text>`;
   }).join('');
 
   return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="${height}" preserveAspectRatio="none">
@@ -119,12 +130,13 @@ function barChartSVG(points, { width = 900, height = 180, min = 0, max = 21, col
 
 // Stacked bar chart — one bar per date, segments stacked by series (used for
 // weekly HR-zone-minutes, where each bar is a week and segments are zones).
-function stackedBarChartSVG(seriesList, { width = 900, height = 200, colors = [], dates = [], labels = [] } = {}) {
+function stackedBarChartSVG(seriesList, { width = 900, height = 200, colors = [], dates = [], labels = [], labelFormatter = null } = {}) {
   if (!dates.length) return emptyChartSVG(width, height);
   const padL = 34, padR = 14, padT = 14, padB = 24;
   const innerW = width - padL - padR;
   const innerH = height - padT - padB;
   const barW = Math.max(2, (innerW / dates.length) * 0.55);
+  const fmt = labelFormatter || fmtDate;
 
   const totals = dates.map((_, i) => seriesList.reduce((sum, series) => sum + (series[i] || 0), 0));
   const max = Math.max(1, ...totals) * 1.1;
@@ -145,14 +157,17 @@ function stackedBarChartSVG(seriesList, { width = 900, height = 200, colors = []
       cumulative += segH;
       const color = colors[si] || 'var(--accent)';
       const label = labels[si] || `Series ${si}`;
-      return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${segH.toFixed(1)}" fill="${color}"><title>${fmtDate(date)} · ${label}: ${val.toFixed(0)}m</title></rect>`;
+      return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${segH.toFixed(1)}" fill="${color}"><title>${fmt(date)} · ${label}: ${val.toFixed(0)}m</title></rect>`;
     }).join('');
   }).join('');
 
-  const labelIdxs = dates.length > 1 ? [0, Math.floor((dates.length - 1) / 2), dates.length - 1] : [0];
+  const showAll = dates.length <= 10;
+  const labelIdxs = showAll
+    ? dates.map((_, i) => i)
+    : (dates.length > 1 ? [0, Math.floor((dates.length - 1) / 2), dates.length - 1] : [0]);
   const xLabels = [...new Set(labelIdxs)].map((i) => {
     const x = padL + (i / Math.max(1, dates.length - 1)) * innerW;
-    return `<text x="${x.toFixed(1)}" y="${height - 6}" font-family="var(--mono)" font-size="10" fill="var(--ink-dim)" text-anchor="middle">${fmtDate(dates[i])}</text>`;
+    return `<text x="${x.toFixed(1)}" y="${height - 6}" font-family="var(--mono)" font-size="10" fill="var(--ink-dim)" text-anchor="middle">${fmt(dates[i])}</text>`;
   }).join('');
 
   return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="${height}" preserveAspectRatio="none">

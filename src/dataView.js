@@ -52,23 +52,14 @@ function buildDashboardPayload({ days = 30 } = {}) {
     .filter((s) => new Date(s.start).getTime() >= cutoff)
     .sort((a, b) => new Date(a.start) - new Date(b.start));
 
-  const workouts = store
-    .getAll('workout')
-    .filter((w) => w.score_state === 'SCORED')
-    .map((w) => ({
-      id: w.id,
-      start: w.start,
-      end: w.end,
-      sport_name: w.sport_name,
-      strain: w.score?.strain ?? null,
-      average_heart_rate: w.score?.average_heart_rate ?? null,
-      max_heart_rate: w.score?.max_heart_rate ?? null,
-      kilojoule: w.score?.kilojoule ?? null,
-      distance_meter: w.score?.distance_meter ?? null,
-      zone_durations: w.score?.zone_durations ?? null
-    }))
-    .filter((w) => new Date(w.start).getTime() >= cutoff)
-    .sort((a, b) => new Date(a.start) - new Date(b.start));
+  const workouts = getScoredWorkouts(cutoff);
+
+  // Weekly Trends has its own week picker, independent of the date-range
+  // filter above, so it always draws from a fixed 90-day window — enough
+  // to populate a reasonable list of selectable weeks regardless of what
+  // range the rest of the dashboard is showing.
+  const weeklyTrendsCutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+  const weeklyTrendWorkouts = getScoredWorkouts(weeklyTrendsCutoff);
 
   const settings = store.getSettings();
 
@@ -84,8 +75,30 @@ function buildDashboardPayload({ days = 30 } = {}) {
     workouts,
     zoneBreakdown: buildZoneBreakdown(workouts),
     weeklyPattern: buildWeeklyPattern(workouts),
-    weeklyTrends: buildWeeklyTrends(workouts, cutoff)
+    weeklyTrends: buildWeeklyTrendsDaily(weeklyTrendWorkouts, weeklyTrendsCutoff),
+    weekOptions: buildWeekOptions(weeklyTrendsCutoff),
+    currentWeekStart: toDayKey(mondayOf(Date.now()))
   };
+}
+
+function getScoredWorkouts(cutoffMs) {
+  return store
+    .getAll('workout')
+    .filter((w) => w.score_state === 'SCORED')
+    .map((w) => ({
+      id: w.id,
+      start: w.start,
+      end: w.end,
+      sport_name: w.sport_name,
+      strain: w.score?.strain ?? null,
+      average_heart_rate: w.score?.average_heart_rate ?? null,
+      max_heart_rate: w.score?.max_heart_rate ?? null,
+      kilojoule: w.score?.kilojoule ?? null,
+      distance_meter: w.score?.distance_meter ?? null,
+      zone_durations: w.score?.zone_durations ?? null
+    }))
+    .filter((w) => new Date(w.start).getTime() >= cutoffMs)
+    .sort((a, b) => new Date(a.start) - new Date(b.start));
 }
 
 // The 5 activities tracked on the Weekly Trends tab. Sport names from WHOOP
@@ -112,33 +125,40 @@ function mondayOf(dateInput) {
   return d;
 }
 
-// For each tracked activity, buckets its workouts into Monday-start weeks
-// spanning the selected date range, and computes average strain and total
-// heart-rate-zone minutes per week — the data behind the Weekly Trends tab.
-function buildWeeklyTrends(workouts, cutoffMs) {
-  const firstWeek = mondayOf(cutoffMs);
-  const lastWeek = mondayOf(Date.now());
+function toDayKey(dateInput) {
+  return new Date(dateInput).toISOString().slice(0, 10);
+}
 
-  const weekKeys = [];
-  for (let d = new Date(firstWeek); d <= lastWeek; d.setDate(d.getDate() + 7)) {
-    weekKeys.push(new Date(d).toISOString().slice(0, 10));
+// For each tracked activity, produces one entry per calendar day spanning
+// the fixed lookback window (including days with no workout), with average
+// strain and heart-rate-zone minutes for that day. The frontend slices this
+// down to whichever 7-day week the person has selected.
+function buildWeeklyTrendsDaily(workouts, cutoffMs) {
+  const startDay = new Date(cutoffMs);
+  startDay.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const dayKeys = [];
+  for (let d = new Date(startDay); d <= today; d.setDate(d.getDate() + 1)) {
+    dayKeys.push(toDayKey(d));
   }
-  if (!weekKeys.length) weekKeys.push(firstWeek.toISOString().slice(0, 10));
+  if (!dayKeys.length) dayKeys.push(toDayKey(startDay));
 
   const byActivity = {};
   TRACKED_ACTIVITIES.forEach(({ key }) => {
     byActivity[key] = {};
-    weekKeys.forEach((wk) => {
-      byActivity[key][wk] = { strainSum: 0, strainCount: 0, zonesMilli: [0, 0, 0, 0, 0, 0], workoutCount: 0 };
+    dayKeys.forEach((dk) => {
+      byActivity[key][dk] = { strainSum: 0, strainCount: 0, zonesMilli: [0, 0, 0, 0, 0, 0], workoutCount: 0 };
     });
   });
 
   for (const w of workouts) {
     const key = normalizeSportKey(w.sport_name);
     if (!byActivity[key]) continue;
-    const wk = mondayOf(w.start).toISOString().slice(0, 10);
-    const bucket = byActivity[key][wk];
-    if (!bucket) continue; // outside the generated week range
+    const dayKey = toDayKey(w.start);
+    const bucket = byActivity[key][dayKey];
+    if (!bucket) continue; // outside the generated day range
     bucket.workoutCount += 1;
     if (w.strain !== null && w.strain !== undefined) {
       bucket.strainSum += w.strain;
@@ -159,17 +179,33 @@ function buildWeeklyTrends(workouts, cutoffMs) {
   }
 
   return TRACKED_ACTIVITIES.map(({ key, label }) => {
-    const weeks = weekKeys.map((wk) => {
-      const b = byActivity[key][wk];
+    const days = dayKeys.map((dk) => {
+      const b = byActivity[key][dk];
       return {
-        weekStart: wk,
+        date: dk,
         strain: b.strainCount > 0 ? b.strainSum / b.strainCount : null,
         workoutCount: b.workoutCount,
         zonesMinutes: b.zonesMilli.map((ms) => ms / 60000)
       };
     });
-    return { key, label, weeks };
+    return { key, label, days };
   });
+}
+
+// List of selectable Monday-start weeks spanning the lookback window, most
+// recent first, for the Weekly Trends week picker.
+function buildWeekOptions(cutoffMs) {
+  const firstMonday = mondayOf(cutoffMs);
+  const lastMonday = mondayOf(Date.now());
+
+  const options = [];
+  for (let d = new Date(firstMonday); d <= lastMonday; d.setDate(d.getDate() + 7)) {
+    const weekStart = new Date(d);
+    const weekEnd = new Date(d);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    options.push({ weekStart: toDayKey(weekStart), weekEnd: toDayKey(weekEnd) });
+  }
+  return options.reverse();
 }
 
 // For each of the 5 most-frequent activity types, counts how many times

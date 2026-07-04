@@ -31,4 +31,5 @@
   rangeSelect.addEventListener('change', refresh);
   refresh();
   initTabs();
+  initWeekSelect();
 })();

@@ -85,4 +85,5 @@
 
   refresh();
   initTabs();
+  initWeekSelect();
 })();

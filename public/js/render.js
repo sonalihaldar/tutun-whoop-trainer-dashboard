@@ -201,12 +201,56 @@ function initTabs() {
   });
 }
 
+let __weeklyTrendsCache = [];
+
 function renderWeeklyTrends(data) {
+  const selectEl = document.getElementById('week-select');
   const container = document.getElementById('weekly-trends');
   if (!container) return;
 
-  const trends = data.weeklyTrends || [];
-  if (!trends.length) {
+  __weeklyTrendsCache = data.weeklyTrends || [];
+
+  if (!selectEl) {
+    renderWeekContent(data.currentWeekStart);
+    return;
+  }
+
+  const options = data.weekOptions || [];
+  const currentWeekStart = data.currentWeekStart;
+  const previousSelection = selectEl.value;
+  const stillValid = options.some((o) => o.weekStart === previousSelection);
+  const selection = stillValid ? previousSelection : currentWeekStart;
+
+  selectEl.innerHTML = options.map((o) => {
+    const label = formatWeekRangeLabel(o.weekStart, o.weekEnd) + (o.weekStart === currentWeekStart ? ' (current)' : '');
+    return `<option value="${o.weekStart}" ${o.weekStart === selection ? 'selected' : ''}>${label}</option>`;
+  }).join('');
+
+  renderWeekContent(selection);
+}
+
+function formatWeekRangeLabel(startIso, endIso) {
+  const start = new Date(startIso);
+  const end = new Date(endIso);
+  const startStr = start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const endStr = end.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  return `${startStr} – ${endStr}`;
+}
+
+function isDateInWeek(dateStr, weekStartStr) {
+  const date = new Date(dateStr);
+  const weekStart = new Date(weekStartStr);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+  return date >= weekStart && date <= weekEnd;
+}
+
+function renderWeekContent(weekStart) {
+  const container = document.getElementById('weekly-trends');
+  if (!container) return;
+
+  const trends = __weeklyTrendsCache;
+  if (!trends.length || !weekStart) {
     container.innerHTML = '<div class="empty-state"><div class="desc">No weekly trend data yet.</div></div>';
     return;
   }
@@ -216,42 +260,60 @@ function renderWeeklyTrends(data) {
   ).join('')}</div>`;
 
   container.innerHTML = trends.map((activity) => {
-    const dates = activity.weeks.map((w) => w.weekStart);
-    const totalWorkouts = activity.weeks.reduce((sum, w) => sum + w.workoutCount, 0);
+    const weekDays = activity.days.filter((d) => isDateInWeek(d.date, weekStart));
+    const totalWorkouts = weekDays.reduce((sum, d) => sum + d.workoutCount, 0);
+
+    if (!weekDays.length) {
+      return `
+        <div class="section">
+          <div class="section-head">
+            <div class="section-title">${escapeHtml(activity.label)}</div>
+            <div class="section-note">no data for this week</div>
+          </div>
+        </div>
+      `;
+    }
 
     if (totalWorkouts === 0) {
       return `
         <div class="section">
           <div class="section-head">
             <div class="section-title">${escapeHtml(activity.label)}</div>
-            <div class="section-note">no workouts logged in this range</div>
+            <div class="section-note">no workouts logged this week</div>
           </div>
         </div>
       `;
     }
 
     const strainSvg = barChartSVG(
-      activity.weeks.map((w) => ({ date: w.weekStart, value: w.strain })),
-      { min: 0, max: 21, colorFn: zoneColorForStrain }
+      weekDays.map((d) => ({ date: d.date, value: d.strain })),
+      { min: 0, max: 21, colorFn: zoneColorForStrain, labelFormatter: fmtDayLabel }
     );
 
-    const zoneSeries = [0, 1, 2, 3, 4, 5].map((zi) => activity.weeks.map((w) => w.zonesMinutes[zi]));
-    const zonesSvg = stackedBarChartSVG(zoneSeries, { colors: ZONE_COLORS, dates, labels: ZONE_LABELS });
+    const dates = weekDays.map((d) => d.date);
+    const zoneSeries = [0, 1, 2, 3, 4, 5].map((zi) => weekDays.map((d) => d.zonesMinutes[zi]));
+    const zonesSvg = stackedBarChartSVG(zoneSeries, { colors: ZONE_COLORS, dates, labels: ZONE_LABELS, labelFormatter: fmtDayLabel });
 
     return `
       <div class="section">
         <div class="section-head">
           <div class="section-title">${escapeHtml(activity.label)}</div>
-          <div class="section-note">weekly · ${totalWorkouts} ${totalWorkouts === 1 ? 'workout' : 'workouts'} in range</div>
+          <div class="section-note">${totalWorkouts} ${totalWorkouts === 1 ? 'workout' : 'workouts'} this week</div>
         </div>
         <div class="weekly-trend-subhead">Strain</div>
         <div class="chart-wrap">${strainSvg}</div>
-        <div class="weekly-trend-subhead">Heart Rate Zones (minutes/week)</div>
+        <div class="weekly-trend-subhead">Heart Rate Zones (minutes/day)</div>
         ${zoneLegend}
         <div class="chart-wrap">${zonesSvg}</div>
       </div>
     `;
   }).join('');
+}
+
+function initWeekSelect() {
+  const selectEl = document.getElementById('week-select');
+  if (!selectEl) return;
+  selectEl.addEventListener('change', () => renderWeekContent(selectEl.value));
 }
 
 function renderAll(data) {
