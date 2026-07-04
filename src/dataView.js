@@ -74,7 +74,6 @@ function buildDashboardPayload({ days = 30 } = {}) {
     sleep,
     workouts,
     zoneBreakdown: buildZoneBreakdown(workouts),
-    weeklyPattern: buildWeeklyPattern(workouts),
     weeklyTrends: buildWeeklyTrendsDaily(weeklyTrendWorkouts, weeklyTrendsCutoff),
     weekOptions: buildWeekOptions(weeklyTrendsCutoff),
     currentWeekStart: toDayKey(mondayOf(Date.now()))
@@ -206,27 +205,6 @@ function buildWeekOptions(cutoffMs) {
     options.push({ weekStart: toDayKey(weekStart), weekEnd: toDayKey(weekEnd) });
   }
   return options.reverse();
-}
-
-// For each of the 5 most-frequent activity types, counts how many times
-// that activity happened on each day of the week (Mon-first).
-function buildWeeklyPattern(workouts) {
-  const bySport = {};
-
-  for (const w of workouts) {
-    const key = w.sport_name || 'other';
-    if (!bySport[key]) {
-      bySport[key] = { sport_name: key, days: [0, 0, 0, 0, 0, 0, 0], total: 0 };
-    }
-    const jsDay = new Date(w.start).getDay(); // 0 = Sunday
-    const mondayFirstIndex = (jsDay + 6) % 7; // 0 = Monday ... 6 = Sunday
-    bySport[key].days[mondayFirstIndex] += 1;
-    bySport[key].total += 1;
-  }
-
-  return Object.values(bySport)
-    .sort((a, b) => b.total - a.total)
-    .slice(0, 5);
 }
 
 // Aggregates time-in-heart-rate-zone across all workouts, grouped by sport,

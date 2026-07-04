@@ -159,34 +159,6 @@ function renderZoneBreakdown(data) {
   container.innerHTML = legend + `<div class="zone-rows">${rows}</div>`;
 }
 
-const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-function renderWeeklyPattern(data) {
-  const container = document.getElementById('weekly-pattern');
-  if (!container) return;
-
-  const pattern = data.weeklyPattern || [];
-  if (!pattern.length) {
-    container.innerHTML = '<div class="empty-state"><div class="desc">Not enough workout history yet to show a weekly pattern.</div></div>';
-    return;
-  }
-
-  const maxCount = Math.max(...pattern.flatMap((p) => p.days), 1);
-
-  const header = `<div class="weekly-row weekly-header-row"><div class="weekly-label"></div>${WEEKDAY_LABELS.map((d) => `<div class="weekly-daylabel">${d}</div>`).join('')}</div>`;
-
-  const rows = pattern.map((activity) => {
-    const cells = activity.days.map((count) => {
-      const intensity = count / maxCount;
-      const bg = count === 0 ? 'transparent' : `rgba(95, 227, 192, ${(0.15 + intensity * 0.65).toFixed(2)})`;
-      return `<div class="weekly-cell" style="background:${bg}">${count > 0 ? count : ''}</div>`;
-    }).join('');
-    return `<div class="weekly-row"><div class="weekly-label">${escapeHtml(titleCaseSport(activity.sport_name))}</div>${cells}</div>`;
-  }).join('');
-
-  container.innerHTML = `<div class="weekly-grid">${header}${rows}</div>`;
-}
-
 function initTabs() {
   const buttons = document.querySelectorAll('.tab-btn');
   if (!buttons.length) return;
@@ -322,7 +294,6 @@ function renderAll(data) {
   renderGauges(data);
   renderCharts(data);
   renderZoneBreakdown(data);
-  renderWeeklyPattern(data);
   renderWeeklyTrends(data);
   renderWorkoutTable(data);
 }
