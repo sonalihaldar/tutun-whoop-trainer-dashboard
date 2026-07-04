@@ -24,17 +24,14 @@ function renderGauges(data) {
   if (!gaugesEl) return;
 
   const latestRecovery = data.recovery[data.recovery.length - 1];
-  const latestSleep = data.sleep.filter((s) => !s.nap)[data.sleep.filter((s) => !s.nap).length - 1];
   const latestCycle = data.cycles[data.cycles.length - 1];
 
   const recoveryVal = latestRecovery?.recovery_score;
-  const sleepVal = latestSleep?.sleep_performance_percentage;
   const strainVal = latestCycle?.strain;
 
   gaugesEl.innerHTML = `
     ${gaugeCard('Recovery', recoveryVal, '%', zoneColorForRecovery(recoveryVal), latestRecovery ? fmtDate(latestRecovery.date) : '—')}
     ${gaugeCard('Day Strain', strainVal !== undefined ? Number(strainVal).toFixed(1) : null, '', zoneColorForStrain(strainVal), latestCycle ? fmtDate(latestCycle.start) : '—')}
-    ${gaugeCard('Sleep Performance', sleepVal, '%', zoneColorForSleep(sleepVal), latestSleep ? fmtDate(latestSleep.start) : '—')}
     ${gaugeCard('Resting HR', latestRecovery?.resting_heart_rate, ' bpm', 'var(--ink)', latestRecovery ? fmtDate(latestRecovery.date) : '—')}
   `;
 }
@@ -64,14 +61,6 @@ function renderCharts(data) {
     strainChart.innerHTML = barChartSVG(
       data.cycles.map((c) => ({ date: c.start, value: c.strain })),
       { min: 0, max: 21, colorFn: zoneColorForStrain }
-    );
-  }
-
-  const sleepChart = document.getElementById('chart-sleep');
-  if (sleepChart) {
-    sleepChart.innerHTML = lineChartSVG(
-      data.sleep.filter((s) => !s.nap).map((s) => ({ date: s.start, value: s.sleep_performance_percentage })),
-      { min: 0, max: 100, colorFn: zoneColorForSleep, unit: '%' }
     );
   }
 
@@ -170,11 +159,54 @@ function renderZoneBreakdown(data) {
   container.innerHTML = legend + `<div class="zone-rows">${rows}</div>`;
 }
 
+const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+function renderWeeklyPattern(data) {
+  const container = document.getElementById('weekly-pattern');
+  if (!container) return;
+
+  const pattern = data.weeklyPattern || [];
+  if (!pattern.length) {
+    container.innerHTML = '<div class="empty-state"><div class="desc">Not enough workout history yet to show a weekly pattern.</div></div>';
+    return;
+  }
+
+  const maxCount = Math.max(...pattern.flatMap((p) => p.days), 1);
+
+  const header = `<div class="weekly-row weekly-header-row"><div class="weekly-label"></div>${WEEKDAY_LABELS.map((d) => `<div class="weekly-daylabel">${d}</div>`).join('')}</div>`;
+
+  const rows = pattern.map((activity) => {
+    const cells = activity.days.map((count) => {
+      const intensity = count / maxCount;
+      const bg = count === 0 ? 'transparent' : `rgba(95, 227, 192, ${(0.15 + intensity * 0.65).toFixed(2)})`;
+      return `<div class="weekly-cell" style="background:${bg}">${count > 0 ? count : ''}</div>`;
+    }).join('');
+    return `<div class="weekly-row"><div class="weekly-label">${escapeHtml(titleCaseSport(activity.sport_name))}</div>${cells}</div>`;
+  }).join('');
+
+  container.innerHTML = `<div class="weekly-grid">${header}${rows}</div>`;
+}
+
+function initTabs() {
+  const buttons = document.querySelectorAll('.tab-btn');
+  if (!buttons.length) return;
+  buttons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      buttons.forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.tab-panel').forEach((p) => { p.style.display = 'none'; });
+      const panel = document.getElementById('tab-' + btn.dataset.tab);
+      if (panel) panel.style.display = 'block';
+    });
+  });
+}
+
 function renderAll(data) {
   renderConnectionDot(data.connected);
   renderLastSync(data);
   renderGauges(data);
   renderCharts(data);
   renderZoneBreakdown(data);
+  renderWeeklyPattern(data);
   renderWorkoutTable(data);
 }

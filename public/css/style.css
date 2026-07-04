@@ -314,6 +314,69 @@ tbody tr:hover { background: rgba(95, 227, 192, 0.04); }
   font-weight: 600;
 }
 
+/* ---------- Tabs ---------- */
+
+.tabs {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid var(--border);
+}
+.tab-btn {
+  background: none;
+  border: none;
+  color: var(--ink-muted);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  letter-spacing: 0.03em;
+  padding: 10px 2px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.tab-btn:hover { color: var(--ink); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ---------- Weekly pattern grid ---------- */
+
+.weekly-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.weekly-row {
+  display: grid;
+  grid-template-columns: 130px repeat(7, 1fr);
+  gap: 5px;
+  align-items: center;
+}
+.weekly-header-row {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.weekly-daylabel { text-align: center; }
+.weekly-label {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.weekly-cell {
+  height: 32px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink);
+  border: 1px solid var(--border);
+}
+
 /* ---------- Zone breakdown ---------- */
 
 .zone-legend {

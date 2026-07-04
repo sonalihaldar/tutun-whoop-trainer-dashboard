@@ -30,4 +30,5 @@
 
   rangeSelect.addEventListener('change', refresh);
   refresh();
+  initTabs();
 })();

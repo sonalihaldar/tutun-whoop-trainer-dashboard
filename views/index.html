@@ -60,60 +60,69 @@
         </div>
       </div>
 
-      <div class="gauges" id="gauges"></div>
-
-      <div class="section">
-        <div class="section-head">
-          <div class="section-title">Recovery %</div>
-          <div class="section-note">green ≥67 · amber ≥34 · red &lt;34</div>
-        </div>
-        <div class="chart-wrap" id="chart-recovery"></div>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="overview">Overview</button>
+        <button class="tab-btn" data-tab="workouts">Workouts</button>
       </div>
 
-      <div class="section">
-        <div class="section-head">
-          <div class="section-title">Day Strain</div>
-          <div class="section-note">0–21 scale</div>
+      <div class="tab-panel" id="tab-overview">
+        <div class="gauges" id="gauges"></div>
+
+        <div class="section">
+          <div class="section-head">
+            <div class="section-title">Recovery %</div>
+            <div class="section-note">green ≥67 · amber ≥34 · red &lt;34</div>
+          </div>
+          <div class="chart-wrap" id="chart-recovery"></div>
         </div>
-        <div class="chart-wrap" id="chart-strain"></div>
+
+        <div class="section">
+          <div class="section-head">
+            <div class="section-title">Day Strain</div>
+            <div class="section-note">0–21 scale</div>
+          </div>
+          <div class="chart-wrap" id="chart-strain"></div>
+        </div>
+
+        <div class="section">
+          <div class="section-head">
+            <div class="section-title">Heart Rate Variability</div>
+            <div class="section-note">ms, RMSSD</div>
+          </div>
+          <div class="chart-wrap" id="chart-hrv"></div>
+        </div>
       </div>
 
-      <div class="section">
-        <div class="section-head">
-          <div class="section-title">Sleep Performance %</div>
-          <div class="section-note">vs. sleep need</div>
+      <div class="tab-panel" id="tab-workouts" style="display:none">
+        <div class="section">
+          <div class="section-head">
+            <div class="section-title">Weekly Pattern</div>
+            <div class="section-note">top 5 activities · workouts per weekday</div>
+          </div>
+          <div id="weekly-pattern"></div>
         </div>
-        <div class="chart-wrap" id="chart-sleep"></div>
-      </div>
 
-      <div class="section">
-        <div class="section-head">
-          <div class="section-title">Heart Rate Variability</div>
-          <div class="section-note">ms, RMSSD</div>
+        <div class="section">
+          <div class="section-head">
+            <div class="section-title">Heart Rate Zones by Activity</div>
+            <div class="section-note">time in zone, by sport</div>
+          </div>
+          <div id="zone-breakdown"></div>
         </div>
-        <div class="chart-wrap" id="chart-hrv"></div>
-      </div>
 
-      <div class="section">
-        <div class="section-head">
-          <div class="section-title">Heart Rate Zones by Activity</div>
-          <div class="section-note">time in zone, by sport</div>
-        </div>
-        <div id="zone-breakdown"></div>
-      </div>
-
-      <div class="section">
-        <div class="section-head">
-          <div class="section-title">Recent workouts</div>
-        </div>
-        <table>
-          <thead>
-            <tr><th>Date</th><th>Activity</th><th>Strain</th><th>Avg HR</th><th>Duration</th></tr>
-          </thead>
-          <tbody id="workout-tbody"></tbody>
-        </table>
-        <div class="empty-state" id="workout-empty" style="display:none">
-          <div class="desc">No workouts logged in this range yet.</div>
+        <div class="section">
+          <div class="section-head">
+            <div class="section-title">Recent workouts</div>
+          </div>
+          <table>
+            <thead>
+              <tr><th>Date</th><th>Activity</th><th>Strain</th><th>Avg HR</th><th>Duration</th></tr>
+            </thead>
+            <tbody id="workout-tbody"></tbody>
+          </table>
+          <div class="empty-state" id="workout-empty" style="display:none">
+            <div class="desc">No workouts logged in this range yet.</div>
+          </div>
         </div>
       </div>
     </div>
