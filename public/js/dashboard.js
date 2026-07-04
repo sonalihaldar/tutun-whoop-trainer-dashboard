@@ -29,6 +29,9 @@
 
     document.getElementById('share-url').textContent = window.location.origin + status.share_url_path;
 
+    const logoutForm = document.getElementById('logout-form');
+    if (logoutForm) logoutForm.style.display = status.login_required ? 'block' : 'none';
+
     const regenBtn = document.getElementById('regen-share-btn');
     const fixedNote = document.getElementById('share-fixed-note');
     if (status.share_token_fixed) {

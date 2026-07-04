@@ -9,9 +9,9 @@ const store = require('./src/store');
 const whoop = require('./src/whoopClient');
 const { runSync, startScheduledSync } = require('./src/sync');
 const { buildDashboardPayload } = require('./src/dataView');
-const { checkAdminPassword, requireAdmin, getOrCreateShareToken, regenerateShareToken, isShareTokenFixed } = require('./src/auth');
+const { checkAdminPassword, requireAdmin, getOrCreateShareToken, regenerateShareToken, isShareTokenFixed, isLoginRequired } = require('./src/auth');
 
-const REQUIRED_ENV = ['WHOOP_CLIENT_ID', 'WHOOP_CLIENT_SECRET', 'WHOOP_REDIRECT_URI', 'ADMIN_PASSWORD', 'SESSION_SECRET'];
+const REQUIRED_ENV = ['WHOOP_CLIENT_ID', 'WHOOP_CLIENT_SECRET', 'WHOOP_REDIRECT_URI', 'SESSION_SECRET'];
 const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
 if (missing.length) {
   console.error(`Missing required environment variables: ${missing.join(', ')}`);
@@ -43,9 +43,18 @@ app.use(
   })
 );
 
+// ---------- Health check (for external keep-alive pingers) ----------
+// Public, no auth, does no work beyond confirming the process is up — safe
+// and cheap to hit every few minutes from an external uptime service to
+// stop Render's free tier from spinning the app down.
+app.get('/healthz', (req, res) => {
+  res.status(200).json({ ok: true, uptime_seconds: Math.round(process.uptime()) });
+});
+
 // ---------- Admin login ----------
 
 app.get('/login', (req, res) => {
+  if (!isLoginRequired()) return res.redirect('/');
   res.sendFile(path.join(__dirname, 'views', 'login.html'));
 });
 
@@ -77,7 +86,8 @@ app.get('/api/status', requireAdmin, (req, res) => {
     last_sync_status: settings.last_sync_status,
     last_sync_error: settings.last_sync_error,
     share_url_path: `/share/${getOrCreateShareToken()}`,
-    share_token_fixed: isShareTokenFixed()
+    share_token_fixed: isShareTokenFixed(),
+    login_required: isLoginRequired()
   });
 });
 

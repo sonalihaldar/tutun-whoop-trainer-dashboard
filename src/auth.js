@@ -16,7 +16,17 @@ function checkAdminPassword(candidate) {
   return crypto.timingSafeEqual(a, b);
 }
 
+// If ADMIN_PASSWORD is unset (or blank), login is disabled entirely and
+// every request is treated as authenticated — no password, no session
+// needed, no re-login after redeploys. This trades away the only barrier
+// between a stranger with your URL and your WHOOP connection, so it's
+// meant for personal convenience, not for anything more exposed.
+function isLoginRequired() {
+  return !!(process.env.ADMIN_PASSWORD && process.env.ADMIN_PASSWORD.length);
+}
+
 function requireAdmin(req, res, next) {
+  if (!isLoginRequired()) return next();
   if (req.session && req.session.isAdmin) return next();
   if (req.path.startsWith('/api/')) {
     return res.status(401).json({ error: 'Not authenticated' });
@@ -58,5 +68,6 @@ module.exports = {
   requireAdmin,
   getOrCreateShareToken,
   regenerateShareToken,
-  isShareTokenFixed
+  isShareTokenFixed,
+  isLoginRequired
 };
