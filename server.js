@@ -9,7 +9,7 @@ const store = require('./src/store');
 const whoop = require('./src/whoopClient');
 const { runSync, startScheduledSync } = require('./src/sync');
 const { buildDashboardPayload } = require('./src/dataView');
-const { checkAdminPassword, requireAdmin, getOrCreateShareToken, regenerateShareToken } = require('./src/auth');
+const { checkAdminPassword, requireAdmin, getOrCreateShareToken, regenerateShareToken, isShareTokenFixed } = require('./src/auth');
 
 const REQUIRED_ENV = ['WHOOP_CLIENT_ID', 'WHOOP_CLIENT_SECRET', 'WHOOP_REDIRECT_URI', 'ADMIN_PASSWORD', 'SESSION_SECRET'];
 const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
@@ -76,7 +76,8 @@ app.get('/api/status', requireAdmin, (req, res) => {
     last_sync_at: settings.last_sync_at,
     last_sync_status: settings.last_sync_status,
     last_sync_error: settings.last_sync_error,
-    share_url_path: `/share/${getOrCreateShareToken()}`
+    share_url_path: `/share/${getOrCreateShareToken()}`,
+    share_token_fixed: isShareTokenFixed()
   });
 });
 
@@ -141,16 +142,16 @@ app.get('/auth/whoop/callback', requireAdmin, async (req, res) => {
 // ---------- Trainer share view (public, token-gated) ----------
 
 app.get('/share/:token', (req, res) => {
-  const settings = store.getSettings();
-  if (!settings.share_token || req.params.token !== settings.share_token) {
+  const validToken = getOrCreateShareToken();
+  if (!validToken || req.params.token !== validToken) {
     return res.status(404).send('Not found');
   }
   res.sendFile(path.join(__dirname, 'views', 'share.html'));
 });
 
 app.get('/api/share/:token/data', (req, res) => {
-  const settings = store.getSettings();
-  if (!settings.share_token || req.params.token !== settings.share_token) {
+  const validToken = getOrCreateShareToken();
+  if (!validToken || req.params.token !== validToken) {
     return res.status(404).json({ error: 'Not found' });
   }
   const days = Math.min(365, Math.max(1, parseInt(req.query.days, 10) || 30));

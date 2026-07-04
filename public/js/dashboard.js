@@ -29,6 +29,18 @@
 
     document.getElementById('share-url').textContent = window.location.origin + status.share_url_path;
 
+    const regenBtn = document.getElementById('regen-share-btn');
+    const fixedNote = document.getElementById('share-fixed-note');
+    if (status.share_token_fixed) {
+      regenBtn.disabled = true;
+      regenBtn.title = 'This link is fixed via the SHARE_TOKEN environment variable — it will not change on redeploy.';
+      if (fixedNote) fixedNote.style.display = 'inline';
+    } else {
+      regenBtn.disabled = false;
+      regenBtn.title = '';
+      if (fixedNote) fixedNote.style.display = 'none';
+    }
+
     const days = rangeSelect.value;
     const data = await loadData(days);
     if (!data) return;

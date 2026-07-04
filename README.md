@@ -67,7 +67,20 @@ Visit `http://localhost:3000`, log in with your `ADMIN_PASSWORD`, click **Connec
 
 ## 4. Share it with your trainer
 
-On your dashboard, copy the **read-only link** shown at the top and send it to your trainer directly (text, email, whatever). They don't need an account. If you ever want to cut off access, click **Regenerate** to invalidate the old link.
+On your dashboard, copy the **read-only link** shown at the top and send it to your trainer directly (text, email, whatever). They don't need an account.
+
+**Important — make the link permanent.** By default, the link's token is auto-generated and stored in the app's local data file. On Render's free tier, that file resets every time the app redeploys (e.g. every time you `git push`), which silently changes your trainer's link without telling you. To avoid that, set a `SHARE_TOKEN` environment variable — this comes from Render's environment config instead of the data file, so it survives redeploys.
+
+1. Generate a token:
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
+   ```
+2. In Render → your service → **Environment**, add `SHARE_TOKEN` with that value.
+3. Redeploy. Your trainer's link (`/share/<that value>`) will now stay the same forever, no matter how many times you update the app.
+
+With `SHARE_TOKEN` set, the **Regenerate** button on your dashboard is disabled (since the link is controlled by the environment variable, not the app). To change the link later, just set a new `SHARE_TOKEN` value in Render and redeploy.
+
+If you'd rather not set this and are fine with the link changing occasionally, you can skip it — the app still works, and you can always copy the current link from your dashboard and re-send it to your trainer after a redeploy.
 
 ---
 
