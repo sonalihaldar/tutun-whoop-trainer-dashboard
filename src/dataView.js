@@ -83,8 +83,93 @@ function buildDashboardPayload({ days = 30 } = {}) {
     sleep,
     workouts,
     zoneBreakdown: buildZoneBreakdown(workouts),
-    weeklyPattern: buildWeeklyPattern(workouts)
+    weeklyPattern: buildWeeklyPattern(workouts),
+    weeklyTrends: buildWeeklyTrends(workouts, cutoff)
   };
+}
+
+// The 5 activities tracked on the Weekly Trends tab. Sport names from WHOOP
+// can vary in casing/spacing (e.g. "Functional Fitness" vs "functional_fitness"),
+// so matching is done against a normalized key, not an exact string.
+const TRACKED_ACTIVITIES = [
+  { key: 'walking', label: 'Walking' },
+  { key: 'functional_fitness', label: 'Functional Fitness' },
+  { key: 'running', label: 'Running' },
+  { key: 'stairmaster', label: 'Stairmaster' },
+  { key: 'elliptical', label: 'Elliptical' }
+];
+
+function normalizeSportKey(name) {
+  return String(name || '').toLowerCase().trim().replace(/[\s-]+/g, '_');
+}
+
+function mondayOf(dateInput) {
+  const d = new Date(dateInput);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay(); // 0 = Sunday
+  const diff = (day + 6) % 7; // days since Monday
+  d.setDate(d.getDate() - diff);
+  return d;
+}
+
+// For each tracked activity, buckets its workouts into Monday-start weeks
+// spanning the selected date range, and computes average strain and total
+// heart-rate-zone minutes per week — the data behind the Weekly Trends tab.
+function buildWeeklyTrends(workouts, cutoffMs) {
+  const firstWeek = mondayOf(cutoffMs);
+  const lastWeek = mondayOf(Date.now());
+
+  const weekKeys = [];
+  for (let d = new Date(firstWeek); d <= lastWeek; d.setDate(d.getDate() + 7)) {
+    weekKeys.push(new Date(d).toISOString().slice(0, 10));
+  }
+  if (!weekKeys.length) weekKeys.push(firstWeek.toISOString().slice(0, 10));
+
+  const byActivity = {};
+  TRACKED_ACTIVITIES.forEach(({ key }) => {
+    byActivity[key] = {};
+    weekKeys.forEach((wk) => {
+      byActivity[key][wk] = { strainSum: 0, strainCount: 0, zonesMilli: [0, 0, 0, 0, 0, 0], workoutCount: 0 };
+    });
+  });
+
+  for (const w of workouts) {
+    const key = normalizeSportKey(w.sport_name);
+    if (!byActivity[key]) continue;
+    const wk = mondayOf(w.start).toISOString().slice(0, 10);
+    const bucket = byActivity[key][wk];
+    if (!bucket) continue; // outside the generated week range
+    bucket.workoutCount += 1;
+    if (w.strain !== null && w.strain !== undefined) {
+      bucket.strainSum += w.strain;
+      bucket.strainCount += 1;
+    }
+    if (w.zone_durations) {
+      const zd = w.zone_durations;
+      const vals = [
+        zd.zone_zero_milli || 0,
+        zd.zone_one_milli || 0,
+        zd.zone_two_milli || 0,
+        zd.zone_three_milli || 0,
+        zd.zone_four_milli || 0,
+        zd.zone_five_milli || 0
+      ];
+      vals.forEach((v, i) => { bucket.zonesMilli[i] += v; });
+    }
+  }
+
+  return TRACKED_ACTIVITIES.map(({ key, label }) => {
+    const weeks = weekKeys.map((wk) => {
+      const b = byActivity[key][wk];
+      return {
+        weekStart: wk,
+        strain: b.strainCount > 0 ? b.strainSum / b.strainCount : null,
+        workoutCount: b.workoutCount,
+        zonesMinutes: b.zonesMilli.map((ms) => ms / 60000)
+      };
+    });
+    return { key, label, weeks };
+  });
 }
 
 // For each of the 5 most-frequent activity types, counts how many times

@@ -117,6 +117,48 @@ function barChartSVG(points, { width = 900, height = 180, min = 0, max = 21, col
   </svg>`;
 }
 
+// Draws several line series sharing one axis — used for HR-zone-over-time
+// charts, where each of the 6 zones is its own line.
+function multiLineChartSVG(seriesList, { width = 900, height = 200, min = 0, max = 100, colors = [], dates = [] } = {}) {
+  if (!dates.length) return emptyChartSVG(width, height);
+  const padL = 34, padR = 14, padT = 14, padB = 24;
+  const innerW = width - padL - padR;
+  const innerH = height - padT - padB;
+
+  const xs = dates.map((_, i) => padL + (i / Math.max(1, dates.length - 1)) * innerW);
+
+  const gridLines = [0.25, 0.5, 0.75].map((f) => {
+    const y = padT + innerH * f;
+    return `<line x1="${padL}" y1="${y}" x2="${width - padR}" y2="${y}" stroke="var(--border)" stroke-width="1" />`;
+  }).join('');
+
+  const paths = seriesList.map((series, si) => {
+    let d = '';
+    let started = false;
+    series.forEach((val, i) => {
+      if (val === null || val === undefined) { started = false; return; }
+      const clamped = Math.max(min, Math.min(max, val));
+      const x = xs[i];
+      const y = padT + innerH - ((clamped - min) / (max - min)) * innerH;
+      d += (started ? ' L ' : ' M ') + x.toFixed(1) + ' ' + y.toFixed(1);
+      started = true;
+    });
+    const color = colors[si] || 'var(--accent)';
+    return `<path d="${d}" fill="none" stroke="${color}" stroke-width="2" />`;
+  }).join('');
+
+  const labelIdxs = dates.length > 1 ? [0, Math.floor((dates.length - 1) / 2), dates.length - 1] : [0];
+  const labels = [...new Set(labelIdxs)].map((i) => {
+    return `<text x="${xs[i].toFixed(1)}" y="${height - 6}" font-family="var(--mono)" font-size="10" fill="var(--ink-dim)" text-anchor="middle">${fmtDate(dates[i])}</text>`;
+  }).join('');
+
+  return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="${height}" preserveAspectRatio="none">
+    ${gridLines}
+    ${paths}
+    ${labels}
+  </svg>`;
+}
+
 function emptyChartSVG(width, height) {
   return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="${height}">
     <text x="${width / 2}" y="${height / 2}" font-family="var(--mono)" font-size="12" fill="var(--ink-dim)" text-anchor="middle">No data in this range yet</text>

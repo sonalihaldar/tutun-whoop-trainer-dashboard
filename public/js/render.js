@@ -201,6 +201,60 @@ function initTabs() {
   });
 }
 
+function renderWeeklyTrends(data) {
+  const container = document.getElementById('weekly-trends');
+  if (!container) return;
+
+  const trends = data.weeklyTrends || [];
+  if (!trends.length) {
+    container.innerHTML = '<div class="empty-state"><div class="desc">No weekly trend data yet.</div></div>';
+    return;
+  }
+
+  const zoneLegend = `<div class="zone-legend">${ZONE_LABELS.map((label, i) =>
+    `<span class="zone-legend-item"><i style="background:${ZONE_COLORS[i]}"></i>${label}</span>`
+  ).join('')}</div>`;
+
+  container.innerHTML = trends.map((activity) => {
+    const dates = activity.weeks.map((w) => w.weekStart);
+    const totalWorkouts = activity.weeks.reduce((sum, w) => sum + w.workoutCount, 0);
+
+    if (totalWorkouts === 0) {
+      return `
+        <div class="section">
+          <div class="section-head">
+            <div class="section-title">${escapeHtml(activity.label)}</div>
+            <div class="section-note">no workouts logged in this range</div>
+          </div>
+        </div>
+      `;
+    }
+
+    const strainSvg = lineChartSVG(
+      activity.weeks.map((w) => ({ date: w.weekStart, value: w.strain })),
+      { min: 0, max: 21, colorFn: zoneColorForStrain }
+    );
+
+    const zoneMax = Math.max(1, ...activity.weeks.flatMap((w) => w.zonesMinutes)) * 1.1;
+    const zoneSeries = [0, 1, 2, 3, 4, 5].map((zi) => activity.weeks.map((w) => w.zonesMinutes[zi]));
+    const zonesSvg = multiLineChartSVG(zoneSeries, { min: 0, max: zoneMax, colors: ZONE_COLORS, dates });
+
+    return `
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">${escapeHtml(activity.label)}</div>
+          <div class="section-note">weekly · ${totalWorkouts} ${totalWorkouts === 1 ? 'workout' : 'workouts'} in range</div>
+        </div>
+        <div class="weekly-trend-subhead">Strain</div>
+        <div class="chart-wrap">${strainSvg}</div>
+        <div class="weekly-trend-subhead">Heart Rate Zones (minutes/week)</div>
+        ${zoneLegend}
+        <div class="chart-wrap">${zonesSvg}</div>
+      </div>
+    `;
+  }).join('');
+}
+
 function renderAll(data) {
   renderConnectionDot(data.connected);
   renderLastSync(data);
@@ -208,5 +262,6 @@ function renderAll(data) {
   renderCharts(data);
   renderZoneBreakdown(data);
   renderWeeklyPattern(data);
+  renderWeeklyTrends(data);
   renderWorkoutTable(data);
 }

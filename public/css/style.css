@@ -377,6 +377,15 @@ tbody tr:hover { background: rgba(95, 227, 192, 0.04); }
   border: 1px solid var(--border);
 }
 
+.weekly-trend-subhead {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 16px 0 8px;
+}
+
 /* ---------- Zone breakdown ---------- */
 
 .zone-legend {

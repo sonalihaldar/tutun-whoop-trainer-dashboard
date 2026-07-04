@@ -37,6 +37,7 @@
     <div id="dashboard-content" style="display:none">
       <div class="toolbar">
         <select id="range-select" class="select">
+          <option value="7">Last 7 days</option>
           <option value="14">Last 14 days</option>
           <option value="30" selected>Last 30 days</option>
           <option value="90">Last 90 days</option>
@@ -46,6 +47,7 @@
       <div class="tabs">
         <button class="tab-btn active" data-tab="overview">Overview</button>
         <button class="tab-btn" data-tab="workouts">Workouts</button>
+        <button class="tab-btn" data-tab="weeklytrends">Weekly Trends</button>
       </div>
 
       <div class="tab-panel" id="tab-overview">
@@ -74,6 +76,14 @@
           </div>
           <div class="chart-wrap" id="chart-hrv"></div>
         </div>
+
+        <div class="section">
+          <div class="section-head">
+            <div class="section-title">Heart Rate Zones by Activity</div>
+            <div class="section-note">time in zone, by sport</div>
+          </div>
+          <div id="zone-breakdown"></div>
+        </div>
       </div>
 
       <div class="tab-panel" id="tab-workouts" style="display:none">
@@ -83,14 +93,6 @@
             <div class="section-note">top 5 activities · workouts per weekday</div>
           </div>
           <div id="weekly-pattern"></div>
-        </div>
-
-        <div class="section">
-          <div class="section-head">
-            <div class="section-title">Heart Rate Zones by Activity</div>
-            <div class="section-note">time in zone, by sport</div>
-          </div>
-          <div id="zone-breakdown"></div>
         </div>
 
         <div class="section">
@@ -107,6 +109,10 @@
             <div class="desc">No workouts logged in this range yet.</div>
           </div>
         </div>
+      </div>
+
+      <div class="tab-panel" id="tab-weeklytrends" style="display:none">
+        <div id="weekly-trends"></div>
       </div>
     </div>
 
