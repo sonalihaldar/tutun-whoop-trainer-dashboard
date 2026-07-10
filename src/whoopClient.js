@@ -71,13 +71,26 @@ async function persistTokenResponse(data) {
   });
 }
 
+// Serializes token refreshes. Without this, the 4 parallel WHOOP API calls
+// a sync makes (recovery/cycle/sleep/workout) would each independently
+// notice an expired token and fire their own refresh request at the same
+// moment. WHOOP rotates refresh tokens on every use, so only the first of
+// those simultaneous requests succeeds — the other 3 get rejected for
+// reusing an already-consumed refresh token, which surfaces as a sync
+// failing with a 400 even though the token itself refreshed fine. This lock
+// makes concurrent callers share the single in-flight refresh instead.
+let refreshPromise = null;
+
 async function getValidAccessToken() {
   const tokens = await store.getTokens();
   if (!tokens) {
     throw new Error('WHOOP is not connected yet.');
   }
   if (Date.now() >= tokens.expires_at) {
-    const refreshed = await refreshAccessToken();
+    if (!refreshPromise) {
+      refreshPromise = refreshAccessToken().finally(() => { refreshPromise = null; });
+    }
+    const refreshed = await refreshPromise;
     return refreshed.access_token;
   }
   return tokens.access_token;
