@@ -7,7 +7,7 @@ const session = require('express-session');
 
 const store = require('./src/store');
 const whoop = require('./src/whoopClient');
-const { runSync, startScheduledSync } = require('./src/sync');
+const { runSync, startScheduledSync, syncIfStale } = require('./src/sync');
 const { buildDashboardPayload } = require('./src/dataView');
 const { checkAdminPassword, requireAdmin, getOrCreateShareToken, regenerateShareToken, isShareTokenFixed, isLoginRequired } = require('./src/auth');
 
@@ -99,6 +99,7 @@ app.get('/api/status', requireAdmin, async (req, res) => {
 
 app.get('/api/data', requireAdmin, async (req, res) => {
   try {
+    await syncIfStale();
     const days = Math.min(365, Math.max(1, parseInt(req.query.days, 10) || 30));
     res.json(await buildDashboardPayload({ days }));
   } catch (err) {
@@ -179,6 +180,7 @@ app.get('/api/share/:token/data', async (req, res) => {
     if (!validToken || req.params.token !== validToken) {
       return res.status(404).json({ error: 'Not found' });
     }
+    await syncIfStale();
     const days = Math.min(365, Math.max(1, parseInt(req.query.days, 10) || 30));
     res.json(await buildDashboardPayload({ days }));
   } catch (err) {
