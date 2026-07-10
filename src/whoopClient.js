@@ -4,6 +4,15 @@ const store = require('./store');
 const AUTH_BASE = 'https://api.prod.whoop.com/oauth/oauth2';
 const API_BASE = 'https://api.prod.whoop.com/developer';
 
+// Defensive: a stray leading/trailing space or invisible character in a
+// Render environment variable (easy to introduce when copy-pasting) is
+// enough to make WHOOP reject the request as malformed ("invalid_request").
+// Trimming here means that class of mistake can't break the app.
+function env(name) {
+  const value = process.env[name];
+  return typeof value === 'string' ? value.trim() : value;
+}
+
 const SCOPES = [
   'offline',
   'read:recovery',
@@ -17,8 +26,8 @@ const SCOPES = [
 function getAuthorizationUrl(state) {
   const params = new URLSearchParams({
     response_type: 'code',
-    client_id: process.env.WHOOP_CLIENT_ID,
-    redirect_uri: process.env.WHOOP_REDIRECT_URI,
+    client_id: env('WHOOP_CLIENT_ID'),
+    redirect_uri: env('WHOOP_REDIRECT_URI'),
     scope: SCOPES,
     state
   });
@@ -29,9 +38,9 @@ async function exchangeCodeForToken(code) {
   const body = new URLSearchParams({
     grant_type: 'authorization_code',
     code,
-    client_id: process.env.WHOOP_CLIENT_ID,
-    client_secret: process.env.WHOOP_CLIENT_SECRET,
-    redirect_uri: process.env.WHOOP_REDIRECT_URI
+    client_id: env('WHOOP_CLIENT_ID'),
+    client_secret: env('WHOOP_CLIENT_SECRET'),
+    redirect_uri: env('WHOOP_REDIRECT_URI')
   });
   const res = await axios.post(`${AUTH_BASE}/token`, body.toString(), {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
@@ -47,9 +56,9 @@ async function refreshAccessToken() {
   }
   const body = new URLSearchParams({
     grant_type: 'refresh_token',
-    refresh_token: tokens.refresh_token,
-    client_id: process.env.WHOOP_CLIENT_ID,
-    client_secret: process.env.WHOOP_CLIENT_SECRET,
+    refresh_token: tokens.refresh_token.trim(),
+    client_id: env('WHOOP_CLIENT_ID'),
+    client_secret: env('WHOOP_CLIENT_SECRET'),
     scope: 'offline'
   });
   const res = await axios.post(`${AUTH_BASE}/token`, body.toString(), {
