@@ -19,13 +19,20 @@ const DATA_FILE = path.join(DATA_DIR, 'db.json');
 const REDIS_KEY = 'whoop-dashboard:db';
 
 const DEFAULT_DATA = {
-  tokens: null, // { access_token, refresh_token, expires_at, scope }
+  tokens: null, // WHOOP: { access_token, refresh_token, expires_at, scope }
+  google_tokens: null, // Google: { access_token, refresh_token, expiry_date, scope }
   settings: {
     share_token: null,
     last_sync_at: null,
     last_sync_status: null,
     last_sync_error: null,
-    whoop_user: null // { user_id, first_name, last_name, email }
+    whoop_user: null, // { user_id, first_name, last_name, email }
+    google_user_email: null,
+    google_drive_file_id: null,
+    google_drive_file_url: null,
+    last_drive_export_at: null,
+    last_drive_export_status: null,
+    last_drive_export_error: null
   },
   recovery: {}, // keyed by cycle_id
   cycle: {},    // keyed by id
@@ -118,6 +125,17 @@ async function setTokens(tokens) {
   await saveDb(db);
 }
 
+async function getGoogleTokens() {
+  const db = await loadDb();
+  return db.google_tokens;
+}
+
+async function setGoogleTokens(tokens) {
+  const db = await loadDb();
+  db.google_tokens = tokens;
+  await saveDb(db);
+}
+
 async function getSettings() {
   const db = await loadDb();
   return db.settings;
@@ -149,6 +167,8 @@ async function getAll(collectionName) {
 module.exports = {
   getTokens,
   setTokens,
+  getGoogleTokens,
+  setGoogleTokens,
   getSettings,
   updateSettings,
   upsertMany,

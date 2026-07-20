@@ -7,7 +7,8 @@ const session = require('express-session');
 
 const store = require('./src/store');
 const whoop = require('./src/whoopClient');
-const { runSync, startScheduledSync, syncIfStale } = require('./src/sync');
+const googleClient = require('./src/googleClient');
+const { runSync, startScheduledSync, syncIfStale, exportWorkoutsToDriveIfConnected } = require('./src/sync');
 const { buildDashboardPayload } = require('./src/dataView');
 const { checkAdminPassword, requireAdmin, getOrCreateShareToken, regenerateShareToken, isShareTokenFixed, isLoginRequired } = require('./src/auth');
 
@@ -82,6 +83,7 @@ app.get('/api/status', requireAdmin, async (req, res) => {
     const settings = await store.getSettings();
     const tokens = await store.getTokens();
     const shareToken = await getOrCreateShareToken();
+    const googleConnected = await googleClient.isConnected();
     res.json({
       connected: !!tokens,
       whoop_user: settings.whoop_user,
@@ -90,7 +92,14 @@ app.get('/api/status', requireAdmin, async (req, res) => {
       last_sync_error: settings.last_sync_error,
       share_url_path: `/share/${shareToken}`,
       share_token_fixed: isShareTokenFixed(),
-      login_required: isLoginRequired()
+      login_required: isLoginRequired(),
+      google_configured: googleClient.isConfigured(),
+      google_connected: googleConnected,
+      google_user_email: settings.google_user_email,
+      google_drive_file_url: settings.google_drive_file_url,
+      last_drive_export_at: settings.last_drive_export_at,
+      last_drive_export_status: settings.last_drive_export_status,
+      last_drive_export_error: settings.last_drive_export_error
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -157,6 +166,54 @@ app.get('/auth/whoop/callback', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('OAuth callback failed:', err.response?.data || err.message);
     res.redirect('/?whoopError=token_exchange_failed');
+  }
+});
+
+// ---------- Google Drive OAuth + export ----------
+
+app.get('/auth/google', requireAdmin, (req, res) => {
+  if (!googleClient.isConfigured()) {
+    return res.status(400).send('Google Drive is not configured on this server. See README.');
+  }
+  const state = crypto.randomBytes(16).toString('hex');
+  req.session.googleOauthState = state;
+  res.redirect(googleClient.getAuthorizationUrl(state));
+});
+
+app.get('/auth/google/callback', requireAdmin, async (req, res) => {
+  const { code, state, error } = req.query;
+  if (error) {
+    return res.redirect(`/?googleError=${encodeURIComponent(error)}`);
+  }
+  if (!state || state !== req.session.googleOauthState) {
+    return res.status(400).send('Invalid OAuth state. Please try connecting again.');
+  }
+  delete req.session.googleOauthState;
+  try {
+    await googleClient.exchangeCodeForToken(code);
+    exportWorkoutsToDriveIfConnected().catch((err) => console.error('Initial Drive export failed:', err.message));
+    res.redirect('/');
+  } catch (err) {
+    console.error('Google OAuth callback failed:', err.response?.data || err.message);
+    res.redirect('/?googleError=token_exchange_failed');
+  }
+});
+
+app.post('/api/drive/export', requireAdmin, async (req, res) => {
+  try {
+    const result = await exportWorkoutsToDriveIfConnected();
+    res.json({ ok: true, result });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/google/disconnect', requireAdmin, async (req, res) => {
+  try {
+    await googleClient.disconnect();
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 

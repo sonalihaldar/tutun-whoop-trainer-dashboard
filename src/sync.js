@@ -1,4 +1,5 @@
 const whoop = require('./whoopClient');
+const google = require('./googleClient');
 const store = require('./store');
 
 let syncInProgress = false;
@@ -37,6 +38,12 @@ async function runSync({ daysBack = 90 } = {}) {
       last_sync_error: null
     });
 
+    // Best-effort Google Drive export; a failure here should never mark the
+    // WHOOP sync itself as failed — they're independent concerns.
+    exportWorkoutsToDriveIfConnected().catch((err) => {
+      console.error('Drive export after sync failed:', err.message);
+    });
+
     return {
       skipped: false,
       counts: {
@@ -58,6 +65,51 @@ async function runSync({ daysBack = 90 } = {}) {
     throw err;
   } finally {
     syncInProgress = false;
+  }
+}
+
+// Exports the full synced workout history to the person's Google Drive
+// activity log, if Drive is connected. Called automatically after every
+// successful WHOOP sync, and also callable directly for the manual
+// "Export now" button.
+async function exportWorkoutsToDriveIfConnected() {
+  if (!google.isConfigured()) return { skipped: true, reason: 'not_configured' };
+  const connected = await google.isConnected();
+  if (!connected) return { skipped: true, reason: 'not_connected' };
+
+  try {
+    const allWorkouts = await store.getAll('workout');
+    const workouts = allWorkouts
+      .filter((w) => w.score_state === 'SCORED')
+      .map((w) => ({
+        start: w.start,
+        end: w.end,
+        sport_name: w.sport_name,
+        strain: w.score?.strain ?? null,
+        average_heart_rate: w.score?.average_heart_rate ?? null,
+        max_heart_rate: w.score?.max_heart_rate ?? null,
+        distance_meter: w.score?.distance_meter ?? null,
+        zone_durations: w.score?.zone_durations ?? null
+      }))
+      .sort((a, b) => new Date(a.start) - new Date(b.start));
+
+    const file = await google.exportWorkoutsToDrive(workouts);
+
+    await store.updateSettings({
+      last_drive_export_at: new Date().toISOString(),
+      last_drive_export_status: 'success',
+      last_drive_export_error: null
+    });
+
+    return { skipped: false, file, count: workouts.length };
+  } catch (err) {
+    const message = err.response?.data?.error?.message || err.message;
+    await store.updateSettings({
+      last_drive_export_at: new Date().toISOString(),
+      last_drive_export_status: 'error',
+      last_drive_export_error: message
+    });
+    throw err;
   }
 }
 
@@ -106,4 +158,4 @@ async function syncIfStale({ healthyMaxAgeMinutes = 60, errorRetryMinutes = 10 }
   }
 }
 
-module.exports = { runSync, startScheduledSync, syncIfStale };
+module.exports = { runSync, startScheduledSync, syncIfStale, exportWorkoutsToDriveIfConnected };

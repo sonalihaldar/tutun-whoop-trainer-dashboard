@@ -97,22 +97,58 @@ With `SHARE_TOKEN` set, the **Regenerate** button on your dashboard is disabled 
 
 If you'd rather not set this and are fine with the link changing occasionally, you can skip it — the app still works, and you can always copy the current link from your dashboard and re-send it to your trainer after a redeploy.
 
+## 6. Export your activity log to Google Drive (optional)
+
+Keeps a single Excel file (`WHOOP Activity Log.xlsx`) in your Google Drive with one row per workout, updated automatically every time the app syncs with WHOOP — plus an **Export now** button on your dashboard for on-demand updates. This is entirely separate from the trainer's dashboard; it's just for you.
+
+**1. Create a Google Cloud project and enable the Drive API**
+- Go to [console.cloud.google.com](https://console.cloud.google.com), create a new project (or reuse one).
+- Go to **APIs & Services → Library**, search for **Google Drive API**, click **Enable**.
+
+**2. Configure the OAuth consent screen**
+- **APIs & Services → OAuth consent screen**. User type: **External**.
+- Fill in the required app name/support email fields.
+- Under **Scopes**, add:
+  - `https://www.googleapis.com/auth/drive.file` (lets the app create/edit only the file it creates — not your whole Drive)
+  - `https://www.googleapis.com/auth/userinfo.email`
+- **Critical step:** once set up, set **Publishing status** to **In production** — not "Testing". This is the whole app, so you don't need Google's full verification review to do this; you'll just see a one-time "Google hasn't verified this app" warning when you first connect, which is safe to click through ("Advanced" → "Go to [app name] (unsafe)") for your own app. **Skipping this step means Google will silently expire your connection every 7 days**, which defeats the point of "auto-updates on every sync."
+
+**3. Create OAuth credentials**
+- **APIs & Services → Credentials → Create Credentials → OAuth client ID**.
+- Application type: **Web application**.
+- Under **Authorized redirect URIs**, add:
+  - `http://localhost:3000/auth/google/callback` (for local testing)
+  - `https://YOUR-APP-NAME.onrender.com/auth/google/callback` (your deployed app)
+- Copy the **Client ID** and **Client Secret** shown after creating it.
+
+**4. Add the env vars**
+In Render (and/or your local `.env`):
+```
+GOOGLE_CLIENT_ID=<paste it>
+GOOGLE_CLIENT_SECRET=<paste it>
+GOOGLE_REDIRECT_URI=https://YOUR-APP-NAME.onrender.com/auth/google/callback
+```
+
+**5. Connect it**
+Redeploy, open your dashboard, and click **Connect Google Drive** in the new export section. After that first connection, the file appears in your Drive and updates itself on every future sync — no more manual steps needed.
+
 ---
 
 ## How it works
 
-- **OAuth**: standard Authorization Code flow against WHOOP's API (`https://api.prod.whoop.com/oauth/oauth2`). Tokens are stored server-side only; refresh tokens rotate automatically per WHOOP's requirements.
-- **Sync**: pulls `/v2/recovery`, `/v2/cycle`, `/v2/activity/sleep`, `/v2/activity/workout` (paginated), on a timer (`SYNC_INTERVAL_MINUTES`, default 30) plus on-demand via the **Sync now** button.
-- **Storage**: a single JSON file (`data/db.json`) — no native modules, so it builds reliably on free hosts.
-- **Access control**: your dashboard requires `ADMIN_PASSWORD`; the share view requires only knowing the unguessable token in the URL.
+- **OAuth**: standard Authorization Code flow against WHOOP's API (`https://api.prod.whoop.com/oauth/oauth2`) and, if configured, Google's OAuth endpoints for Drive access. Tokens are stored server-side only; WHOOP refresh tokens rotate automatically per WHOOP's requirements, Google's do not.
+- **Sync**: pulls `/v2/recovery`, `/v2/cycle`, `/v2/activity/sleep`, `/v2/activity/workout` from WHOOP (paginated), on a timer (`SYNC_INTERVAL_MINUTES`, default 30), on-demand via **Sync now**, and opportunistically whenever the dashboard or share link is loaded if the last sync looks stale. A successful sync also triggers a best-effort Google Drive export if that's connected.
+- **Storage**: Upstash Redis if configured (survives redeploys), otherwise a local JSON file (`data/db.json`, resets on Render redeploys) — no native modules either way, so it builds reliably on free hosts.
+- **Access control**: your dashboard requires `ADMIN_PASSWORD` (optional — can be disabled); the share view requires only knowing the unguessable token in the URL.
 
 ## Project structure
 
 ```
 server.js              Express app + all routes
 src/whoopClient.js      OAuth + WHOOP API calls
-src/sync.js             Pulls data from WHOOP, upserts into the store
-src/store.js             JSON file storage
+src/googleClient.js     Google OAuth + Drive export (Excel generation, upload)
+src/sync.js             Pulls data from WHOOP, upserts into the store, triggers Drive export
+src/store.js             Upstash Redis or local JSON file storage
 src/dataView.js         Shapes raw records into the dashboard payload
 src/auth.js              Admin password check + share-token helpers
 views/                  HTML pages (login, dashboard, share view)

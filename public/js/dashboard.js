@@ -44,6 +44,8 @@
       if (fixedNote) fixedNote.style.display = 'none';
     }
 
+    renderDriveSection(status);
+
     const days = rangeSelect.value;
     const data = await loadData(days);
     if (!data) return;
@@ -95,6 +97,76 @@
   document.getElementById('disconnect-btn').addEventListener('click', async () => {
     if (!confirm('This disconnects your WHOOP account. You can reconnect any time, but you will need to re-authorize.')) return;
     await fetch('/api/whoop/disconnect', { method: 'POST' });
+    refresh();
+  });
+
+  function renderDriveSection(status) {
+    const notConfiguredEl = document.getElementById('drive-not-configured');
+    const notConnectedEl = document.getElementById('drive-not-connected');
+    const connectedEl = document.getElementById('drive-connected');
+
+    notConfiguredEl.style.display = 'none';
+    notConnectedEl.style.display = 'none';
+    connectedEl.style.display = 'none';
+
+    if (!status.google_configured) {
+      notConfiguredEl.style.display = 'flex';
+      return;
+    }
+    if (!status.google_connected) {
+      notConnectedEl.style.display = 'flex';
+      return;
+    }
+
+    connectedEl.style.display = 'flex';
+    document.getElementById('drive-email').textContent = status.google_user_email || 'connected account';
+
+    const statusEl = document.getElementById('drive-export-status');
+    if (status.last_drive_export_status === 'error') {
+      statusEl.textContent = 'export error';
+      statusEl.style.color = 'var(--zone-low)';
+    } else if (status.last_drive_export_at) {
+      statusEl.textContent = 'exported ' + fmtDateTime(status.last_drive_export_at);
+      statusEl.style.color = '';
+    } else {
+      statusEl.textContent = 'not exported yet';
+      statusEl.style.color = '';
+    }
+    if (status.last_drive_export_status === 'error' && status.last_drive_export_error) {
+      statusEl.title = status.last_drive_export_error;
+    } else {
+      statusEl.title = '';
+    }
+
+    const openLink = document.getElementById('drive-open-link');
+    if (status.google_drive_file_url) {
+      openLink.href = status.google_drive_file_url;
+      openLink.style.display = 'inline-block';
+    } else {
+      openLink.style.display = 'none';
+    }
+  }
+
+  document.getElementById('drive-export-btn').addEventListener('click', async (e) => {
+    const btn = e.target;
+    btn.disabled = true;
+    btn.textContent = 'Exporting…';
+    try {
+      const res = await fetch('/api/drive/export', { method: 'POST' });
+      const result = await res.json();
+      if (!result.ok) throw new Error(result.error || 'Export failed');
+      await refresh();
+    } catch (err) {
+      alert('Export failed: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Export now';
+    }
+  });
+
+  document.getElementById('drive-disconnect-btn').addEventListener('click', async () => {
+    if (!confirm('This disconnects Google Drive. Your existing exported file stays in your Drive, but auto-export will stop until you reconnect.')) return;
+    await fetch('/api/google/disconnect', { method: 'POST' });
     refresh();
   });
 

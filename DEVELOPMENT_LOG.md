@@ -72,6 +72,31 @@ Built incrementally, in this order:
   - A broken/expired WHOOP token (fix: disconnect and reconnect WHOOP), vs.
   - The app simply being asleep the whole time with no keep-alive configured, so its internal sync timer never ran (fix: set up the cron-job.org pinger from Section 5, then click "Sync now" once to catch up).
 
+## 9. Self-healing sync trigger
+
+**Root problem identified:** the scheduled sync depends entirely on an in-memory `setInterval` timer staying alive continuously. Any process restart (Render maintenance, a crash, anything short of a full redeploy) silently resets that timer to zero with nothing to bring it back except time — a single point of failure on a free tier where restarts aren't fully within your control.
+
+**Fix:** added a second, independent sync trigger (`syncIfStale` in `src/sync.js`) that runs on every dashboard or trainer share-page load. If the last sync is over an hour old, or the last attempt errored, it kicks off a fresh sync in the background without blocking the page — so simply opening the dashboard (by you or your trainer) is now enough to catch up a stalled sync, regardless of whether the background timer survived. Tested directly: confirmed a stale sync triggers a background attempt without slowing the page load (~100ms), and confirmed fresh data correctly triggers nothing extra.
+
+## 10. Token refresh race condition (the "400 invalid_request" saga)
+
+A report of `"Sync failed: Request failed with status code 400"` led to a multi-step investigation:
+
+1. **First hypothesis, confirmed by simulation:** a sync fetches recovery/cycle/sleep/workout from WHOOP in parallel. WHOOP access tokens expire hourly, and each of those 4 parallel calls independently checked "is my token expired?" and refreshed it if so. When the token happened to be expired right as a sync ran, all 4 fired their own refresh request simultaneously — but WHOOP rotates refresh tokens on every use, so only the first request WHOOP processed succeeded; the other 3 were rejected for reusing an already-consumed refresh token. **Fix:** added a shared refresh lock in `src/whoopClient.js` so concurrent callers await one in-flight refresh instead of racing each other. Verified with a simulated concurrency test (4 parallel calls against an expired token) confirming only one actual refresh request fires.
+2. **Second hypothesis, ruled out:** WHOOP's own error hint mentioned trimming parameters, suggesting stray whitespace in a Render environment variable (`WHOOP_CLIENT_ID`/`WHOOP_CLIENT_SECRET`) copy-pasted at some point. Added defensive `.trim()` on all WHOOP credential env vars regardless — cheap insurance even though it turned out not to be the root cause here.
+3. **Actual root cause:** the stored refresh token had already been permanently invalidated — a casualty of the original race condition from *before* the lock in step 1 was deployed. Once a refresh token is consumed (or lost in a race), no request-formatting fix can revive it; the only way forward is minting a completely new token pair. **Resolution:** Disconnect WHOOP → Connect WHOOP again → confirmed `last_sync_status: "success"` immediately after.
+
+This is a good illustration of layered debugging: the race-condition fix and the trim fix were both legitimate, worthwhile hardening — but the specific failure the person was hitting needed the token itself replaced, not just the code fixed going forward.
+
+## 11. Google Drive Excel export
+
+Added a second, independent OAuth integration (parallel to the WHOOP one) so the person can keep a running Excel file of their workouts in Google Drive:
+
+- **Scoping decisions, clarified up front:** workouts-only (not recovery/sleep), updates both automatically on every WHOOP sync and via a manual "Export now" button, and maintains a single continuously-updated file rather than creating a new one each time.
+- **Avoided a foreseeable recurrence of the WHOOP reconnect problem:** researched Google's OAuth token lifetime rules before building — apps left in "Testing" publishing status have their refresh tokens expire every 7 days, which would have recreated the exact reconnect-treadmill issue already solved for WHOOP. Documented the fix (set Publishing status to "In production", which for a personal single-user app doesn't require Google's full verification review) prominently in the setup instructions.
+- **Built:** `src/googleClient.js` (OAuth flow, token refresh via `googleapis`'s built-in auto-refresh + a listener that persists refreshed tokens back to the store, and the actual Excel generation via the `xlsx` library + Drive API upload), wired into `src/sync.js` as a best-effort step after every successful WHOOP sync (a Drive failure never fails the WHOOP sync itself), plus new admin-only routes and a dashboard UI section (deliberately not shown on the trainer's share view, since it's an owner-only feature).
+- **Tested with mocked Google API calls** (real network calls to Google aren't reachable from the build sandbox): verified the OAuth consent URL is correctly formed, verified the file is created exactly once and updated (not recreated) on every subsequent export, and verified the generated `.xlsx` file's actual cell contents are correct by reading the buffer back with the same library.
+
 ---
 
 ## Current setup checklist
@@ -83,3 +108,5 @@ Built incrementally, in this order:
 - [ ] `SHARE_TOKEN` set, if a permanent trainer link is wanted
 - [ ] `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` set, so data survives redeploys
 - [ ] cron-job.org (or similar) pinging `/healthz` every ~10 minutes to prevent sleep-induced sync gaps
+- [ ] `/api/status` currently shows `last_sync_status: "success"` with no error
+- [ ] (Optional) `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` set, with the OAuth consent screen's Publishing status set to **In production** (not Testing)
